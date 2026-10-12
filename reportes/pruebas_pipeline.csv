@@ -1,0 +1,22 @@
+prueba,resultado,detalle
+Original PRO idéntico al entregado,OK,
+"PRO filas = 47,804",OK,
+"BASICO filas = 107,666",OK,
+"PRO sin_indices = 12,057",OK,
+"BASICO sin_indices = 31,741",OK,
+"Sin duplicados (ID,fecha,sensor)",OK,
+197 parcelas únicas,OK,
+Sin NaN en rasgos (excepto rendimiento),OK,
+Rendimiento nulo solo en PREDICCION,OK,
+59 predicciones,OK,
+IDs = parcelas PREDICCION,OK,
+Sin NaN en predicciones,OK,
+Predicciones en rango plausible,OK,2.742–4.59
+Intervalos ordenados,OK,
+Spearman Python = R (tol 1e-6),OK,max dif 9.19e-17
+NDVI media/n Sentinel-2 Python=R,OK,n=44877
+NDVI media/n Planet Python=R,OK,n=35747
+Kruskal rendimiento~municipio R = Python,OK,R=7.673e-17 Py=7.673e-17
+Spearman global amp_ciclo R = Python,OK,
+Rendimiento medio entrenamiento R = Python,OK,
+RMSE OOF (predicción promedio) R = Python,OK,

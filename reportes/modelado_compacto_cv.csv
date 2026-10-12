@@ -1,0 +1,15 @@
+modelo,rmse,rmse_sd,mae,r2,rmse_sin_Calpulalpan
+"Mediana mun. + Ridge(10 var., x0.5)",0.4993,0.0012,0.3322,0.6534,0.5294
+Base: mediana municipio,0.4993,0.0022,0.3227,0.6534,0.5306
+Mediana mun. + KNN residuos k=8 (x0.5),0.5023,0.0039,0.3467,0.6492,0.5317
+KNN espacial k=12,0.5047,0.0072,0.3625,0.6458,0.5307
+Mediana mun. + RF residuos satélite (x0.5),0.5065,0.0043,0.3371,0.6433,0.5391
+Mediana mun. + Ridge(3 var. satélite),0.5087,0.004,0.3473,0.6402,0.5374
+Mediana mun. + GP espacial de residuos,0.5106,0.0019,0.3496,0.6374,0.5403
+KNN espacial k=8,0.5117,0.008,0.3724,0.6359,0.5381
+Mediana mun. + Ridge(5 var. satélite),0.5122,0.0056,0.3499,0.6352,0.542
+GP espacial (coordenadas),0.515,0.0026,0.3556,0.6313,0.5414
+Media municipio con contracción (k=3),0.5179,0.0029,0.3583,0.6271,0.548
+KNN espacial k=5,0.5228,0.0093,0.3828,0.6198,0.5498
+KNN espacial k=3,0.5245,0.0156,0.3863,0.6171,0.5461
+Mediana mun. + KNN residuos k=5,0.5374,0.0092,0.3958,0.5984,0.567

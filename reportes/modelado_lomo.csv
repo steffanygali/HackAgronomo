@@ -1,0 +1,5 @@
+municipio_excluido,n,rmse_base_media,rmse_Ridge,rmse_RandomForest,rmse_LightGBM
+Chignahuapan,71,1.222,1.115,1.25,1.228
+Calpulalpan,30,1.274,0.754,0.986,0.904
+Singuilucan,16,1.074,0.897,1.12,0.961
+Almoloya,10,0.635,0.268,0.453,0.631

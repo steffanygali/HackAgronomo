@@ -1,0 +1,7 @@
+verificacion,n,violaciones
+SAVI < 0.69 (LAI calculable),44877,0
+"Sentinel-2 NDVI en [-1,1]",44877,0
+"Planet NDVI en [-1,1]",35747,0
+"FAPAR en [0,1]",44873,0
+"STI, MSI, EMSI >0 (cocientes de reflectancia)",44877,0
+Planet LAI2 < 0 (posible por la ecuación),35747,1

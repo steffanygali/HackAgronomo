@@ -1,0 +1,10 @@
+municipio,n,rmse,sesgo
+Almoloya,10.0,0.185,0.112
+Apan,1.0,0.015,-0.015
+Calpulalpan,30.0,0.395,-0.035
+Chignahuapan,71.0,0.63,0.055
+Cuautepec de Hinojosa,5.0,0.432,0.305
+Emiliano Zapata,3.0,0.284,0.26
+Nanacamilpa de Mariano Arista,1.0,0.711,-0.711
+Singuilucan,16.0,0.478,-0.145
+Tepeapulco,1.0,0.939,0.939

@@ -1,0 +1,16 @@
+variable,rho_intra_municipio,p_ajustada_permutacion,es_clima
+s2_ndvi_base,0.2383,0.2088,False
+s2_ndvi_doy_pico,0.2186,0.3307,False
+pl_ndvi_base,0.1908,0.5934,False
+amp_jun_sep,-0.1882,0.6104,True
+amp_ciclo,-0.1847,0.6364,True
+s2_ndvi_doy_arranque,0.1685,0.8012,False
+log_area,-0.1679,0.8102,False
+s2_lai_base,0.1615,0.8671,False
+s2_savi_base,0.1613,0.8671,False
+s2_evi_base,0.1553,0.9031,False
+pl_lai_base,0.1536,0.9081,False
+s2_msi_jas,0.1445,0.9361,False
+tmax_jun_sep,-0.1442,0.9371,True
+pl_ndvi_doy_pico,0.1424,0.9441,False
+s2_crc_jas,0.1367,0.96,False

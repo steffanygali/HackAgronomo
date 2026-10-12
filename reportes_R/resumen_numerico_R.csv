@@ -1,0 +1,9 @@
+metrica,valor_R
+kruskal_p_rend_municipio,7.673426166452677e-17
+spearman_global_amp_ciclo,-0.6645796471121959
+rendimiento_media_entrenamiento,3.9553623188405798
+oof_rmse,0.4848378408128412
+oof_mae,0.31293478260869567
+oof_r2,0.6731651780885254
+n_rasgos_probados,80
+n_significativos_bonferroni,29
