@@ -1,0 +1,108 @@
+/** @type {import('tailwindcss').Config} */
+export default {
+  content: [
+    "./index.html",
+    "./src/**/*.{js,ts,jsx,tsx}",
+  ],
+  theme: {
+    extend: {
+      fontFamily: {
+        sans: ['"Roboto Flex"', 'Roboto', 'system-ui', 'sans-serif'],
+        display: ['"Roboto Flex"', 'Roboto', 'system-ui', 'sans-serif'],
+        mono: ['"Roboto Mono"', 'ui-monospace', 'monospace'],
+      },
+      fontSize: {
+        'display-s': ['36px', { lineHeight: '44px', fontWeight: '400' }],
+        'headline-m': ['28px', { lineHeight: '36px', fontWeight: '400' }],
+        'headline-s': ['24px', { lineHeight: '32px', fontWeight: '400' }],
+        'title-l': ['22px', { lineHeight: '28px', fontWeight: '400' }],
+        'title-m': ['16px', { lineHeight: '24px', fontWeight: '500', letterSpacing: '0.15px' }],
+        'title-s': ['14px', { lineHeight: '20px', fontWeight: '500', letterSpacing: '0.1px' }],
+        'body-l': ['16px', { lineHeight: '24px', fontWeight: '400', letterSpacing: '0.5px' }],
+        'body-m': ['14px', { lineHeight: '20px', fontWeight: '400', letterSpacing: '0.25px' }],
+        'body-s': ['12px', { lineHeight: '16px', fontWeight: '400', letterSpacing: '0.4px' }],
+        'label-l': ['14px', { lineHeight: '20px', fontWeight: '500', letterSpacing: '0.1px' }],
+        'label-m': ['12px', { lineHeight: '16px', fontWeight: '500', letterSpacing: '0.5px' }],
+        'label-s': ['11px', { lineHeight: '16px', fontWeight: '500', letterSpacing: '0.5px' }],
+      },
+      borderRadius: {
+        'm3-xs': '4px',
+        'm3-sm': '8px',
+        'm3-md': '12px',
+        'm3-lg': '16px',
+        'm3-xl': '28px',
+      },
+      boxShadow: {
+        'm3-1': '0 1px 2px rgba(0,0,0,.3), 0 1px 3px 1px rgba(0,0,0,.15)',
+        'm3-2': '0 1px 2px rgba(0,0,0,.3), 0 2px 6px 2px rgba(0,0,0,.15)',
+        'm3-3': '0 1px 3px rgba(0,0,0,.3), 0 4px 8px 3px rgba(0,0,0,.15)',
+      },
+      transitionTimingFunction: {
+        m3: 'cubic-bezier(.2,0,0,1)',
+      },
+      colors: {
+        m3: {
+          primary: '#2F6A3A',
+          'on-primary': '#FFFFFF',
+          'primary-container': '#B3F1B6',
+          'on-primary-container': '#00210A',
+          secondary: '#516350',
+          'on-secondary': '#FFFFFF',
+          'secondary-container': '#D4E8D0',
+          'on-secondary-container': '#0F1F10',
+          tertiary: '#7B5800',
+          'on-tertiary': '#FFFFFF',
+          'tertiary-container': '#FFDEA4',
+          'on-tertiary-container': '#261900',
+          error: '#BA1A1A',
+          'error-container': '#FFDAD6',
+          'on-error-container': '#410002',
+          info: '#00639B',
+          'info-container': '#CDE5FF',
+          'on-info-container': '#001D33',
+          surface: '#F7FBF2',
+          'surface-dim': '#D7DBD3',
+          'surface-container-lowest': '#FFFFFF',
+          'surface-container-low': '#F1F5EC',
+          'surface-container': '#EBEFE6',
+          'surface-container-high': '#E5E9E1',
+          'surface-container-highest': '#E0E4DB',
+          'on-surface': '#181D18',
+          'on-surface-variant': '#414941',
+          outline: '#717970',
+          'outline-variant': '#C1C9BE',
+          'inverse-surface': '#2D322C',
+          'inverse-on-surface': '#EEF2E9',
+          'inverse-primary': '#98D59C',
+        },
+        volcanic: {
+          950: '#0E1310',
+          900: '#141A16',
+          800: '#1E2721',
+          700: '#2C3830',
+        },
+        limestone: {
+          50: '#FAF9F5',
+          100: '#F6F5F0',
+          200: '#EAE8DF',
+          300: '#DCD9CC',
+        },
+        fira: {
+          green: '#1B5E3A',
+          emerald: '#237A4B',
+          light: '#E6F2EC',
+        },
+        barley: {
+          gold: '#C88A1E',
+          amber: '#DFA02E',
+          light: '#FDF6E7',
+        },
+        frost: {
+          red: '#B83B2A',
+          light: '#FCECE9',
+        }
+      }
+    },
+  },
+  plugins: [],
+}

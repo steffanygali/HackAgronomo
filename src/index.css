@@ -1,0 +1,266 @@
+@import 'maplibre-gl/dist/maplibre-gl.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    font-family: 'Roboto Flex', Roboto, system-ui, sans-serif;
+    background-color: #F7FBF2;
+    color: #181D18;
+  }
+
+  :focus-visible {
+    outline: 2px solid #2F6A3A;
+    outline-offset: 2px;
+  }
+}
+
+/* Material 3 State Layer */
+.state-layer {
+  position: relative;
+  overflow: hidden;
+}
+
+.state-layer::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-color: currentColor;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 200ms cubic-bezier(0.2, 0, 0, 1);
+  border-radius: inherit;
+}
+
+.state-layer:hover::before {
+  opacity: 0.08;
+}
+
+.state-layer:focus-visible::before,
+.state-layer:active::before {
+  opacity: 0.12;
+}
+
+/* Material 3 Range Slider */
+input[type="range"].m3-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 32px;
+  background: transparent;
+  cursor: pointer;
+  vertical-align: middle;
+}
+
+input[type="range"].m3-slider:focus-visible {
+  outline: none;
+}
+
+input[type="range"].m3-slider:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+}
+
+/* WebKit slider */
+input[type="range"].m3-slider::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 9999px;
+  background: linear-gradient(to right, #2F6A3A var(--fill, 0%), #E0E4DB var(--fill, 0%));
+}
+
+input[type="range"].m3-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background-color: #2F6A3A;
+  border: none;
+  margin-top: -8px;
+  box-shadow: 0 0 0 0 rgba(47, 106, 58, 0.12);
+  transition: box-shadow 200ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+input[type="range"].m3-slider:hover::-webkit-slider-thumb,
+input[type="range"].m3-slider:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 10px rgba(47, 106, 58, 0.12);
+}
+
+/* Mozilla Firefox slider */
+input[type="range"].m3-slider::-moz-range-track {
+  height: 4px;
+  border-radius: 9999px;
+  background: linear-gradient(to right, #2F6A3A var(--fill, 0%), #E0E4DB var(--fill, 0%));
+}
+
+input[type="range"].m3-slider::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background-color: #2F6A3A;
+  border: none;
+  box-shadow: 0 0 0 0 rgba(47, 106, 58, 0.12);
+  transition: box-shadow 200ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+input[type="range"].m3-slider:hover::-moz-range-thumb,
+input[type="range"].m3-slider:focus-visible::-moz-range-thumb {
+  box-shadow: 0 0 0 10px rgba(47, 106, 58, 0.12);
+}
+
+/* Tertiary slider variant */
+input[type="range"].m3-slider[data-tone="tertiary"]::-webkit-slider-runnable-track {
+  background: linear-gradient(to right, #7B5800 var(--fill, 0%), #E0E4DB var(--fill, 0%));
+}
+
+input[type="range"].m3-slider[data-tone="tertiary"]::-webkit-slider-thumb {
+  background-color: #7B5800;
+  box-shadow: 0 0 0 0 rgba(123, 88, 0, 0.12);
+}
+
+input[type="range"].m3-slider[data-tone="tertiary"]:hover::-webkit-slider-thumb,
+input[type="range"].m3-slider[data-tone="tertiary"]:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 10px rgba(123, 88, 0, 0.12);
+}
+
+input[type="range"].m3-slider[data-tone="tertiary"]::-moz-range-track {
+  background: linear-gradient(to right, #7B5800 var(--fill, 0%), #E0E4DB var(--fill, 0%));
+}
+
+input[type="range"].m3-slider[data-tone="tertiary"]::-moz-range-thumb {
+  background-color: #7B5800;
+  box-shadow: 0 0 0 0 rgba(123, 88, 0, 0.12);
+}
+
+input[type="range"].m3-slider[data-tone="tertiary"]:hover::-moz-range-thumb,
+input[type="range"].m3-slider[data-tone="tertiary"]:focus-visible::-moz-range-thumb {
+  box-shadow: 0 0 0 10px rgba(123, 88, 0, 0.12);
+}
+
+/* Reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Subtle Material 3 scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #C1C9BE;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: #717970;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #C1C9BE transparent;
+}
+
+/* Utility to hide scrollbars */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* MapLibre Restyling */
+.maplibregl-popup-content {
+  background: #2D322C !important;
+  color: #EEF2E9 !important;
+  border: none !important;
+  border-radius: 12px !important;
+  padding: 12px 14px !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 2px 6px 2px rgba(0, 0, 0, 0.15) !important;
+  font-family: 'Roboto Flex', Roboto, system-ui, sans-serif !important;
+}
+
+.maplibregl-popup-tip {
+  border-top-color: #2D322C !important;
+  border-bottom-color: #2D322C !important;
+}
+
+.maplibregl-popup-anchor-top .maplibregl-popup-tip {
+  border-bottom-color: #2D322C !important;
+}
+
+.maplibregl-popup-anchor-bottom .maplibregl-popup-tip {
+  border-top-color: #2D322C !important;
+}
+
+.maplibregl-popup-anchor-left .maplibregl-popup-tip {
+  border-right-color: #2D322C !important;
+}
+
+.maplibregl-popup-anchor-right .maplibregl-popup-tip {
+  border-left-color: #2D322C !important;
+}
+
+.maplibregl-popup-anchor-top-left .maplibregl-popup-tip {
+  border-bottom-color: #2D322C !important;
+}
+
+.maplibregl-popup-anchor-top-right .maplibregl-popup-tip {
+  border-bottom-color: #2D322C !important;
+}
+
+.maplibregl-popup-anchor-bottom-left .maplibregl-popup-tip {
+  border-top-color: #2D322C !important;
+}
+
+.maplibregl-popup-anchor-bottom-right .maplibregl-popup-tip {
+  border-top-color: #2D322C !important;
+}
+
+.maplibregl-ctrl-group {
+  border-radius: 16px !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 2px 6px 2px rgba(0, 0, 0, 0.15) !important;
+  border: none !important;
+  background: #F7FBF2 !important;
+  overflow: hidden;
+}
+
+.maplibregl-ctrl-group button {
+  width: 40px !important;
+  height: 40px !important;
+}
+
+.maplibregl-ctrl-attrib {
+  font-size: 11px !important;
+  border-radius: 8px !important;
+  background-color: rgba(247, 251, 242, 0.85) !important;
+  color: #414941 !important;
+  padding: 2px 6px !important;
+}
+
+.maplibregl-ctrl-attrib a {
+  color: #2F6A3A !important;
+}
+
+.maplibregl-ctrl-scale {
+  border-radius: 4px !important;
+  background-color: #F7FBF2 !important;
+  color: #181D18 !important;
+  border-color: #717970 !important;
+}
