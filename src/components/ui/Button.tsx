@@ -21,8 +21,8 @@ export function Button({
   const isText = variant === 'text';
 
   const sizeClasses = size === 'sm'
-    ? (isText ? 'h-8 px-3' : 'h-8 px-4')
-    : (isText ? 'h-10 px-3' : 'h-10 px-6');
+    ? (isText ? 'h-10 px-3' : 'h-10 px-4')
+    : (isText ? 'h-12 px-3' : 'h-12 px-6');
 
   const variantClasses: Record<ButtonVariant, string> = {
     filled: 'bg-m3-primary text-m3-on-primary',
@@ -36,7 +36,7 @@ export function Button({
     <button
       type={type}
       className={cn(
-        'inline-flex items-center justify-center gap-2 font-medium rounded-full text-label-l state-layer transition-all duration-200 ease-m3 disabled:opacity-40 disabled:pointer-events-none select-none cursor-pointer shrink-0',
+        'inline-flex items-center justify-center gap-2 font-semibold rounded-m3-lg text-label-l state-layer transition-colors duration-150 ease-m3 disabled:opacity-40 disabled:pointer-events-none select-none cursor-pointer shrink-0',
         sizeClasses,
         variantClasses[variant],
         className

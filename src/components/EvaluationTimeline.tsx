@@ -96,23 +96,23 @@ export const EvaluationTimeline: React.FC<EvaluationTimelineProps> = ({
         {/* Métricas: en md+ horizontal, en móvil (< md) cuadrícula 2x2 */}
         <div className="grid grid-cols-2 md:flex md:items-center gap-2 md:gap-6 bg-m3-surface-container/60 p-2 md:p-0 rounded-m3-sm md:bg-transparent">
           <Metric
-            label="NDVI"
-            value={currentEval.ndvi.toFixed(3)}
+            label="Qué tan verde"
+            value={currentEval.ndvi.toFixed(2)}
             size="sm"
             tone="primary"
           />
           <Metric
-            label="NDWI (humedad)"
-            value={`${currentEval.ndwi.toFixed(2)} (${currentEval.soilMoisturePct}%)`}
+            label="Humedad del suelo"
+            value={`${currentEval.soilMoisturePct}%`}
             size="sm"
           />
           <Metric
-            label="Lluvia mm"
+            label="Lluvia"
             value={`${currentEval.precipMm} mm`}
             size="sm"
           />
           <Metric
-            label="Temp máx/mín"
+            label="Temperatura"
             value={`${currentEval.tempMaxC}° / ${currentEval.tempMinC}°C`}
             size="sm"
           />

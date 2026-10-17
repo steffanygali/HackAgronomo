@@ -37,10 +37,10 @@ export function FilterChip({
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        'inline-flex items-center gap-2 h-8 rounded-m3-sm px-3 text-label-l font-medium select-none state-layer transition-all duration-200 ease-m3 cursor-pointer shrink-0 disabled:opacity-40 disabled:pointer-events-none',
+        'inline-flex items-center gap-2 h-12 rounded-m3-sm px-4 text-label-l font-semibold select-none state-layer transition-colors duration-150 ease-m3 cursor-pointer shrink-0 disabled:opacity-40 disabled:pointer-events-none',
         selected
-          ? 'bg-m3-secondary-container text-m3-on-secondary-container border border-transparent'
-          : 'border border-m3-outline-variant bg-transparent text-m3-on-surface-variant hover:text-m3-on-surface',
+          ? 'bg-m3-secondary-container text-m3-on-secondary-container border border-m3-secondary'
+          : 'border border-m3-outline-variant bg-m3-surface-container-lowest text-m3-on-surface-variant hover:text-m3-on-surface hover:border-m3-outline',
         className
       )}
     >

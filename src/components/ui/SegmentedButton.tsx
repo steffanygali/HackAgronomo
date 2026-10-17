@@ -30,8 +30,8 @@ export function SegmentedButton<T extends string>({
       role="group"
       aria-label={ariaLabel}
       className={cn(
-        'inline-flex items-stretch rounded-full border border-m3-outline overflow-hidden select-none',
-        size === 'sm' ? 'h-8' : 'h-10',
+        'inline-flex items-stretch rounded-m3-md border border-m3-outline overflow-hidden select-none',
+        size === 'sm' ? 'h-10' : 'h-12',
         className
       )}
     >
@@ -53,7 +53,7 @@ export function SegmentedButton<T extends string>({
             aria-pressed={isSelected}
             onClick={() => onChange(opt.value)}
             className={cn(
-              'relative flex-1 min-w-[48px] px-3 sm:px-4 inline-flex items-center justify-center gap-2 text-label-l font-medium border-r border-m3-outline last:border-r-0 state-layer transition-all duration-200 ease-m3 cursor-pointer focus-visible:z-10',
+              'relative flex-1 min-w-[48px] px-3 sm:px-4 inline-flex items-center justify-center gap-2 text-label-l font-semibold border-r border-m3-outline last:border-r-0 state-layer transition-colors duration-150 ease-m3 cursor-pointer focus-visible:z-10',
               isSelected
                 ? 'bg-m3-secondary-container text-m3-on-secondary-container font-semibold'
                 : 'bg-transparent text-m3-on-surface-variant hover:text-m3-on-surface'

@@ -139,9 +139,14 @@ export function App() {
 
   if (!selectedParcel) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-m3-surface text-m3-on-surface gap-4">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-m3-surface text-m3-on-surface gap-4 px-6 text-center">
         <div className="w-10 h-10 rounded-full border-4 border-m3-primary-container border-t-m3-primary animate-spin" />
-        <div className="text-body-l text-m3-on-surface">Cargando parcelas…</div>
+        <div>
+          <p className="text-title-m text-m3-on-surface">Estamos preparando tu parcela…</p>
+          <p className="text-body-m text-m3-on-surface-variant mt-1">
+            Un momento, estamos reuniendo los datos del satélite.
+          </p>
+        </div>
       </div>
     );
   }
@@ -176,8 +181,8 @@ export function App() {
 
           {/* Lado derecho: Buscador + SegmentedButton + Conexión Backend */}
           <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
-            {/* Buscador Desktop (md+) */}
-            <div className="hidden md:flex relative items-center h-10 w-44 lg:w-60 xl:w-72 bg-m3-surface-container-highest rounded-full px-3 text-m3-on-surface shrink-0">
+            {/* Buscador Desktop (lg+) */}
+            <div className="hidden lg:flex relative items-center h-12 w-52 xl:w-64 bg-m3-surface-container-lowest border border-m3-outline-variant rounded-m3-md px-3 text-m3-on-surface shrink-0">
               <Search className="w-4 h-4 text-m3-on-surface-variant shrink-0 mr-2" />
               <input
                 type="text"
@@ -197,28 +202,27 @@ export function App() {
               )}
             </div>
 
-            {/* Botón de búsqueda colapsado para móvil (< md) */}
-            <div className="md:hidden">
+            {/* Botón de búsqueda colapsado para móvil/tablet (< lg) */}
+            <div className="lg:hidden">
               <IconButton
                 variant="standard"
                 icon={<Search className="w-5 h-5" />}
                 aria-label="Buscar parcela"
                 onClick={() => setShowMobileSearch(!showMobileSearch)}
-                className="w-9 h-9"
               />
             </div>
 
-            {/* Conmutador de modo: Agricultor / Analista */}
+            {/* Conmutador de modo: Agricultor / Analista (oculto en móvil, ver barra dedicada) */}
             <SegmentedButton
               options={[
                 {
                   value: 'farmer',
-                  label: <span className="hidden sm:inline">Agricultor</span>,
+                  label: 'Agricultor',
                   icon: <Sprout className="w-4 h-4" />,
                 },
                 {
                   value: 'analyst',
-                  label: <span className="hidden sm:inline">Analista</span>,
+                  label: 'Analista',
                   icon: <BarChart3 className="w-4 h-4" />,
                 },
               ]}
@@ -226,7 +230,7 @@ export function App() {
               onChange={setViewMode}
               size="md"
               ariaLabel="Modo de vista"
-              className="shrink-0 min-w-0 sm:min-w-[280px] [&_button]:px-2 sm:[&_button]:px-4"
+              className="hidden lg:inline-flex shrink-0 [&_button]:px-4"
             />
 
             {/* Botón de conexión backend con punto de estado de 8px */}
@@ -236,7 +240,6 @@ export function App() {
                 icon={<Server className="w-5 h-5" />}
                 aria-label="Conexión con backend"
                 onClick={() => setIsBackendModalOpen(true)}
-                className="w-9 h-9 sm:w-10 sm:h-10"
               />
               <span
                 className={`absolute top-1.5 right-1.5 sm:top-2 sm:right-2 w-2 h-2 rounded-full pointer-events-none ring-2 ring-m3-surface-container ${
@@ -249,8 +252,8 @@ export function App() {
 
         {/* Campo de búsqueda móvil expandible */}
         {showMobileSearch && (
-          <div className="md:hidden px-3 sm:px-4 py-2 bg-m3-surface-container border-t border-m3-outline-variant/40 flex items-center gap-2">
-            <div className="relative flex-1 flex items-center h-10 bg-m3-surface-container-highest rounded-full px-3 text-m3-on-surface">
+          <div className="lg:hidden px-3 sm:px-4 py-2 bg-m3-surface-container border-t border-m3-outline-variant/40 flex items-center gap-2">
+            <div className="relative flex-1 flex items-center h-12 bg-m3-surface-container-lowest border border-m3-outline-variant rounded-m3-md px-3 text-m3-on-surface">
               <Search className="w-4 h-4 text-m3-on-surface-variant shrink-0 mr-2" />
               <input
                 type="text"
@@ -282,10 +285,36 @@ export function App() {
 
       {/* CONTENIDO PRINCIPAL */}
       <main className="flex-1 max-w-[1760px] w-full mx-auto p-3 sm:p-4 flex flex-col">
+        {/* Selector de modo para móvil y tablet (obvio y a ancho completo) */}
+        <div className="lg:hidden mb-3">
+          <p className="text-label-m text-m3-on-surface-variant mb-1.5 select-none">
+            ¿Qué vista quieres ver?
+          </p>
+          <SegmentedButton
+            options={[
+              {
+                value: 'farmer',
+                label: 'Agricultor',
+                icon: <Sprout className="w-4 h-4" />,
+              },
+              {
+                value: 'analyst',
+                label: 'Analista',
+                icon: <BarChart3 className="w-4 h-4" />,
+              },
+            ]}
+            value={viewMode}
+            onChange={setViewMode}
+            size="md"
+            ariaLabel="Modo de vista"
+            className="w-full"
+          />
+        </div>
+
         {/* FILA DE CONTEXTO (No sticky) */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 mb-3">
           {/* Chips de filtro por Estado */}
-          <div className="flex gap-2 overflow-x-auto no-scrollbar items-center py-1 shrink-0">
+          <div className="flex gap-2 overflow-x-auto no-scrollbar items-center py-1 min-w-0">
             {(['ALL', 'Hidalgo', 'Tlaxcala', 'Puebla'] as const).map((st) => (
               <FilterChip
                 key={st}
@@ -308,7 +337,7 @@ export function App() {
               </Button>
             </div>
           ) : (
-            <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2 sm:gap-3">
+            <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2 sm:gap-3 min-w-0 shrink-0">
               <span className="text-body-s text-m3-on-surface-variant hidden xl:inline">
                 Mostrando {filteredParcels.length} parcelas
               </span>
@@ -321,7 +350,7 @@ export function App() {
                   aria-label="Parcela anterior"
                   onClick={() => handlePrevNextParcel(-1)}
                   disabled={filteredParcels.length <= 1}
-                  className="w-8 h-8 sm:w-9 sm:h-9"
+                  className="w-11 h-11 sm:w-12 sm:h-12"
                 />
                 <select
                   value={selectedParcel.id}
@@ -329,7 +358,7 @@ export function App() {
                     const found = allParcels.find((p) => p.id === e.target.value);
                     if (found) handleSelectParcel(found);
                   }}
-                  className="h-10 rounded-m3-xs border border-m3-outline bg-transparent px-2.5 sm:px-3 text-body-m text-m3-on-surface font-mono focus:outline-none focus:border-m3-primary flex-1 sm:flex-none max-w-[210px] sm:max-w-xs truncate"
+                  className="h-12 rounded-m3-sm border border-m3-outline bg-m3-surface-container-lowest px-2.5 sm:px-3 text-body-m text-m3-on-surface font-mono focus:outline-none focus:border-m3-primary flex-1 sm:flex-none max-w-[210px] sm:max-w-xs truncate"
                 >
                   {filteredParcels.map((p) => (
                     <option key={p.id} value={p.id} className="bg-m3-surface text-m3-on-surface">
@@ -343,7 +372,7 @@ export function App() {
                   aria-label="Siguiente parcela"
                   onClick={() => handlePrevNextParcel(1)}
                   disabled={filteredParcels.length <= 1}
-                  className="w-8 h-8 sm:w-9 sm:h-9"
+                  className="w-11 h-11 sm:w-12 sm:h-12"
                 />
               </div>
 
@@ -364,9 +393,9 @@ export function App() {
         {/* LAYOUT: GRID DE DOS COLUMNAS (MAPA + TIMELINE IZQUIERDA, SHEET DERECHA) */}
         <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_min(520px,40vw)] gap-4 flex-1">
           {/* Panel Izquierdo: Fijo en viewport en Desktop, scrollable en mobile */}
-          <section className="lg:sticky lg:top-[80px] lg:h-[calc(100vh-96px)] flex flex-col gap-3 min-h-0">
+          <section className="lg:sticky lg:top-[80px] lg:h-[calc(100vh-64px-16px)] flex flex-col gap-3 min-h-0">
             {/* Mapa de parcelas */}
-            <div className="h-[58vh] min-h-[360px] lg:h-auto lg:flex-1 lg:min-h-0">
+            <div className="h-[50vh] min-h-[320px] lg:h-auto lg:flex-1 lg:min-h-0">
               <ParcelMap
                 parcels={filteredParcels}
                 selectedParcel={selectedParcel}

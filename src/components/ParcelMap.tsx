@@ -45,10 +45,10 @@ function colorExpression(mode: MapColorMode): any {
       'interpolate',
       ['linear'],
       ['get', 'predictedYield'],
-      2.2, '#BA1A1A',
-      3.5, '#E2A529',
-      4.3, '#5FA463',
-      5.2, '#1F5B2C',
+      2.2, '#A33A28',
+      3.5, '#C98A2E',
+      4.3, '#6E8B5A',
+      5.2, '#3F5A34',
     ];
   }
   if (mode === 'ndvi') {
@@ -56,10 +56,10 @@ function colorExpression(mode: MapColorMode): any {
       'interpolate',
       ['linear'],
       ['get', 'ndvi'],
-      0.2, '#B9822B',
-      0.45, '#D8C04A',
-      0.65, '#6DB56F',
-      0.85, '#1F5B2C',
+      0.2, '#A98A5B',
+      0.45, '#CBB457',
+      0.65, '#6E8B5A',
+      0.85, '#3F5A34',
     ];
   }
   if (mode === 'ndwi') {
@@ -67,18 +67,18 @@ function colorExpression(mode: MapColorMode): any {
       'interpolate',
       ['linear'],
       ['get', 'ndwi'],
-      -0.05, '#BA1A1A',
-      0.15, '#E2A529',
-      0.35, '#4BA3D9',
-      0.52, '#00639B',
+      -0.05, '#A33A28',
+      0.15, '#C98A2E',
+      0.35, '#5E8FA8',
+      0.52, '#3E6A7A',
     ];
   }
   // mode === 'split'
   return [
     'case',
     ['==', ['get', 'split'], 'eval'],
-    '#E2A529',
-    '#2F6A3A',
+    '#C98A2E',
+    '#4F6144',
   ];
 }
 
@@ -221,7 +221,7 @@ export const ParcelMap: React.FC<ParcelMapProps> = ({
           type: 'Feature' as const,
           properties: {
             id: sub.id,
-            label: `${sub.code}: ${sub.predictedYieldTonHa} t/ha\nNDVI ${currentNdvi.toFixed(2)}`,
+            label: `${sub.code}: ${sub.predictedYieldTonHa} t/ha\nVerdor ${currentNdvi.toFixed(2)}`,
           },
           geometry: {
             type: 'Point' as const,
@@ -334,7 +334,7 @@ export const ParcelMap: React.FC<ParcelMapProps> = ({
               ],
             },
           },
-          // Borde de las 197 parcelas: selected #FFFFFF w3, eval #E2A529 w1.5, train rgba(255,255,255,0.55) w1
+          // Borde de las 197 parcelas: selected #FFFFFF w3, eval #C98A2E w1.5, train rgba(255,255,255,0.55) w1
           {
             id: 'parcels-outline',
             type: 'line',
@@ -345,7 +345,7 @@ export const ParcelMap: React.FC<ParcelMapProps> = ({
                 ['==', ['get', 'isSelected'], 1],
                 '#FFFFFF',
                 ['==', ['get', 'split'], 'eval'],
-                '#E2A529',
+                '#C98A2E',
                 'rgba(255,255,255,0.55)',
               ],
               'line-width': [
@@ -394,10 +394,10 @@ export const ParcelMap: React.FC<ParcelMapProps> = ({
                 'interpolate',
                 ['linear'],
                 ['get', 'ndvi'],
-                0.2, '#B9822B',
-                0.45, '#D8C04A',
-                0.65, '#6DB56F',
-                0.85, '#1F5B2C',
+                0.2, '#A98A5B',
+                0.45, '#CBB457',
+                0.65, '#6E8B5A',
+                0.85, '#3F5A34',
               ],
               'fill-opacity': [
                 'case',
@@ -407,7 +407,7 @@ export const ParcelMap: React.FC<ParcelMapProps> = ({
               ],
             },
           },
-          // Líneas divisorias internas de la parcela: seleccionada #FFDEA4 w3, normal blanca dashed w1.8
+          // Líneas divisorias internas de la parcela: seleccionada #F3DFB4 w3, normal blanca dashed w1.8
           {
             id: 'subdivisions-line',
             type: 'line',
@@ -416,7 +416,7 @@ export const ParcelMap: React.FC<ParcelMapProps> = ({
               'line-color': [
                 'case',
                 ['==', ['get', 'isSelectedSub'], 1],
-                '#FFDEA4',
+                '#F3DFB4',
                 '#FFFFFF',
               ],
               'line-width': [
@@ -443,7 +443,7 @@ export const ParcelMap: React.FC<ParcelMapProps> = ({
             },
             paint: {
               'text-color': '#FFFFFF',
-              'text-halo-color': '#181D18',
+              'text-halo-color': '#22201A',
               'text-halo-width': 1.8,
             },
           },
@@ -478,27 +478,27 @@ export const ParcelMap: React.FC<ParcelMapProps> = ({
       const props = e.features[0].properties;
       const splitPill =
         props.split === 'eval'
-          ? `<span style="background:#FFDEA4;color:#261900;border-radius:8px;padding:2px 8px;font-size:12px;font-weight:500;">Evaluación 30%</span>`
-          : `<span style="background:#B3F1B6;color:#00210A;border-radius:8px;padding:2px 8px;font-size:12px;font-weight:500;">Entrenamiento 70%</span>`;
+          ? `<span style="background:#F3DFB4;color:#3A2B04;border-radius:8px;padding:2px 8px;font-size:12px;font-weight:600;">Evaluación 30%</span>`
+          : `<span style="background:#DCE4CF;color:#2E3A24;border-radius:8px;padding:2px 8px;font-size:12px;font-weight:600;">Entrenamiento 70%</span>`;
 
       popup
         .setLngLat(e.lngLat)
         .setHTML(
-          `<div style="min-width:210px;font-family:'Roboto Flex',Roboto,sans-serif;">
+          `<div style="min-width:210px;font-family:'Source Sans 3','Source Sans Pro',sans-serif;">
             <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px;">
-              <span style="font-family:'Roboto Mono',monospace;font-size:12px;font-weight:500;color:#EEF2E9;">${escapeHtml(props.id)}</span>
+              <span style="font-family:'Roboto Mono',monospace;font-size:12px;font-weight:500;color:#F2ECDF;">${escapeHtml(props.id)}</span>
               ${splitPill}
             </div>
-            <div style="font-size:14px;font-weight:500;color:#EEF2E9;margin-bottom:2px;">${escapeHtml(props.name)}</div>
-            <div style="font-size:12px;color:#EEF2E9;opacity:0.8;margin-bottom:8px;">${escapeHtml(props.municipality)}, ${escapeHtml(props.state)} — ${escapeHtml(props.areaHa)} ha</div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;border-top:1px solid rgba(238,242,233,0.15);padding-top:8px;">
+            <div style="font-size:14px;font-weight:600;color:#F2ECDF;margin-bottom:2px;">${escapeHtml(props.name)}</div>
+            <div style="font-size:12px;color:#F2ECDF;opacity:0.8;margin-bottom:8px;">${escapeHtml(props.municipality)}, ${escapeHtml(props.state)} — ${escapeHtml(props.areaHa)} ha</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;border-top:1px solid rgba(242,236,223,0.15);padding-top:8px;">
               <div>
-                <div style="font-size:11px;color:#EEF2E9;opacity:0.7;">Predicción</div>
-                <div style="font-size:16px;font-weight:500;color:#98D59C;font-variant-numeric:tabular-nums;">${Number(props.predictedYield).toFixed(2)} t/ha</div>
+                <div style="font-size:11px;color:#F2ECDF;opacity:0.7;">Predicción</div>
+                <div style="font-size:16px;font-weight:600;color:#B7C6A3;font-variant-numeric:tabular-nums;">${Number(props.predictedYield).toFixed(2)} t/ha</div>
               </div>
               <div>
-                <div style="font-size:11px;color:#EEF2E9;opacity:0.7;">NDVI ${escapeHtml(props.date)}</div>
-                <div style="font-size:16px;font-weight:500;color:#EEF2E9;font-variant-numeric:tabular-nums;">${Number(props.ndvi).toFixed(3)}</div>
+                <div style="font-size:11px;color:#F2ECDF;opacity:0.7;">Vegetación ${escapeHtml(props.date)}</div>
+                <div style="font-size:16px;font-weight:600;color:#F2ECDF;font-variant-numeric:tabular-nums;">${Number(props.ndvi).toFixed(3)}</div>
               </div>
             </div>
           </div>`
@@ -685,7 +685,7 @@ export const ParcelMap: React.FC<ParcelMapProps> = ({
             key={preset.label}
             type="button"
             onClick={() => handleFlyToRegion(preset.center, preset.zoom)}
-            className="h-8 px-2.5 rounded-m3-sm text-label-l font-medium text-m3-on-surface-variant hover:text-m3-on-surface hover:bg-m3-surface-container-high transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+            className="h-12 px-3 rounded-m3-sm text-label-l font-medium text-m3-on-surface-variant hover:text-m3-on-surface hover:bg-m3-surface-container-high transition-colors whitespace-nowrap shrink-0 cursor-pointer"
           >
             {preset.label}
           </button>
@@ -722,7 +722,7 @@ export const ParcelMap: React.FC<ParcelMapProps> = ({
                   icon={<ChevronUp className="w-4 h-4" />}
                   aria-label="Ocultar capas"
                   onClick={() => setIsLayerPanelOpen(false)}
-                  className="w-7 h-7"
+                  className="w-12 h-12"
                 />
               </div>
 
@@ -734,13 +734,13 @@ export const ParcelMap: React.FC<ParcelMapProps> = ({
                   className="w-full justify-center px-1.5 text-label-s"
                 />
                 <FilterChip
-                  label="NDVI"
+                  label="Verdor"
                   selected={colorMode === 'ndvi'}
                   onClick={() => onColorModeChange('ndvi')}
                   className="w-full justify-center px-1.5 text-label-s"
                 />
                 <FilterChip
-                  label="NDWI"
+                  label="Humedad"
                   selected={colorMode === 'ndwi'}
                   onClick={() => onColorModeChange('ndwi')}
                   className="w-full justify-center px-1.5 text-label-s"
@@ -756,7 +756,7 @@ export const ParcelMap: React.FC<ParcelMapProps> = ({
               {/* Leyenda cartográfica con barra de gradiente y 3 etiquetas */}
               {colorMode === 'yield' && (
                 <div>
-                  <div className="h-2 w-full rounded-full bg-gradient-to-r from-[#BA1A1A] via-[#E2A529] via-[#5FA463] to-[#1F5B2C]" />
+                  <div className="h-2 w-full rounded-full bg-gradient-to-r from-[#A33A28] via-[#C98A2E] via-[#6E8B5A] to-[#3F5A34]" />
                   <div className="flex justify-between text-body-s text-m3-on-surface-variant mt-1">
                     <span>2 t/ha</span>
                     <span>3.8</span>
@@ -766,7 +766,7 @@ export const ParcelMap: React.FC<ParcelMapProps> = ({
               )}
               {colorMode === 'ndvi' && (
                 <div>
-                  <div className="h-2 w-full rounded-full bg-gradient-to-r from-[#B9822B] via-[#D8C04A] via-[#6DB56F] to-[#1F5B2C]" />
+                  <div className="h-2 w-full rounded-full bg-gradient-to-r from-[#A98A5B] via-[#CBB457] via-[#6E8B5A] to-[#3F5A34]" />
                   <div className="flex justify-between text-body-s text-m3-on-surface-variant mt-1">
                     <span>0.2</span>
                     <span>0.55</span>
@@ -776,7 +776,7 @@ export const ParcelMap: React.FC<ParcelMapProps> = ({
               )}
               {colorMode === 'ndwi' && (
                 <div>
-                  <div className="h-2 w-full rounded-full bg-gradient-to-r from-[#BA1A1A] via-[#E2A529] via-[#4BA3D9] to-[#00639B]" />
+                  <div className="h-2 w-full rounded-full bg-gradient-to-r from-[#A33A28] via-[#C98A2E] via-[#5E8FA8] to-[#3E6A7A]" />
                   <div className="flex justify-between text-body-s text-m3-on-surface-variant mt-1">
                     <span>−0.05</span>
                     <span>0.2</span>
@@ -791,7 +791,7 @@ export const ParcelMap: React.FC<ParcelMapProps> = ({
                     Entrenamiento {trainCount}
                   </span>
                   <span className="flex items-center gap-1.5">
-                    <span className="w-2.5 h-2.5 rounded-full bg-[#E2A529] shrink-0" />
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#C98A2E] shrink-0" />
                     Evaluación {evalCount}
                   </span>
                 </div>
@@ -833,7 +833,7 @@ export const ParcelMap: React.FC<ParcelMapProps> = ({
                   icon={<X className="w-4 h-4" />}
                   aria-label="Cerrar sub-lotes"
                   onClick={() => setIsSubLotsPanelOpen(false)}
-                  className="w-7 h-7"
+                  className="w-12 h-12"
                 />
               </div>
 
@@ -864,7 +864,7 @@ export const ParcelMap: React.FC<ParcelMapProps> = ({
                     >
                       <div className="min-w-0">
                         <div className="text-label-m font-medium truncate">{sub.name || sub.code}</div>
-                        <div className="text-[11px] opacity-75">NDVI {currentNdvi.toFixed(2)}</div>
+                        <div className="text-[11px] opacity-75">Verdor {currentNdvi.toFixed(2)}</div>
                       </div>
                       <div className="text-right shrink-0 font-mono text-label-s">
                         {sub.predictedYieldTonHa} t/ha
@@ -887,9 +887,9 @@ export const ParcelMap: React.FC<ParcelMapProps> = ({
           ]}
           value={basemapStyle}
           onChange={(v) => setBasemapStyle(v as 'satellite' | 'topo')}
-          size="sm"
+          size="md"
           ariaLabel="Estilo del mapa base"
-          className="w-[190px] [&_button]:px-2"
+          className="w-[200px] [&_button]:px-2"
         />
       </div>
     </div>

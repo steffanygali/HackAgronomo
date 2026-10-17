@@ -34,7 +34,7 @@ export function IconButton({
       aria-label={ariaLabel}
       aria-pressed={selected}
       className={cn(
-        'inline-flex items-center justify-center w-10 h-10 rounded-full state-layer transition-all duration-200 ease-m3 disabled:opacity-40 disabled:pointer-events-none select-none cursor-pointer shrink-0',
+        'inline-flex items-center justify-center w-12 h-12 rounded-full state-layer transition-colors duration-150 ease-m3 disabled:opacity-40 disabled:pointer-events-none select-none cursor-pointer shrink-0',
         variantClasses[variant],
         className
       )}
