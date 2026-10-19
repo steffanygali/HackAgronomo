@@ -1,0 +1,50 @@
+[
+  {
+    "municipio": "Cuautepec de Hinojosa",
+    "n_prediccion": 4,
+    "n_entrenamiento": 5,
+    "rendimiento_medio_predicho": 4.542,
+    "semiancho_90": 0.368,
+    "confianza": "media"
+  },
+  {
+    "municipio": "Chignahuapan",
+    "n_prediccion": 29,
+    "n_entrenamiento": 71,
+    "rendimiento_medio_predicho": 4.516,
+    "semiancho_90": 0.946,
+    "confianza": "alta"
+  },
+  {
+    "municipio": "Almoloya",
+    "n_prediccion": 4,
+    "n_entrenamiento": 10,
+    "rendimiento_medio_predicho": 4.496,
+    "semiancho_90": 0.333,
+    "confianza": "alta"
+  },
+  {
+    "municipio": "Singuilucan",
+    "n_prediccion": 7,
+    "n_entrenamiento": 16,
+    "rendimiento_medio_predicho": 3.187,
+    "semiancho_90": 0.666,
+    "confianza": "alta"
+  },
+  {
+    "municipio": "Calpulalpan",
+    "n_prediccion": 14,
+    "n_entrenamiento": 30,
+    "rendimiento_medio_predicho": 2.961,
+    "semiancho_90": 0.532,
+    "confianza": "alta"
+  },
+  {
+    "municipio": "Nanacamilpa de Mariano Arista",
+    "n_prediccion": 1,
+    "n_entrenamiento": 1,
+    "rendimiento_medio_predicho": 2.752,
+    "semiancho_90": 0.368,
+    "confianza": "baja"
+  }
+]

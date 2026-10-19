@@ -1,0 +1,74 @@
+[
+  {
+    "modelo": "Híbrido (candidato)",
+    "rmse": 0.4856,
+    "rmse_sd": 0.0025,
+    "mae": 0.3159,
+    "r2": 0.6722,
+    "elegido": true
+  },
+  {
+    "modelo": "KNN espacial (k=12)",
+    "rmse": 0.4893,
+    "rmse_sd": 0.0039,
+    "mae": 0.354,
+    "r2": 0.6671,
+    "elegido": false
+  },
+  {
+    "modelo": "Extra Trees (todas)",
+    "rmse": 0.5262,
+    "rmse_sd": 0.0077,
+    "mae": 0.3759,
+    "r2": 0.6149,
+    "elegido": false
+  },
+  {
+    "modelo": "Random Forest (todas)",
+    "rmse": 0.5281,
+    "rmse_sd": 0.0084,
+    "mae": 0.3747,
+    "r2": 0.6121,
+    "elegido": false
+  },
+  {
+    "modelo": "Jerárquico (shrinkage k=3)",
+    "rmse": 0.538,
+    "rmse_sd": 0.0037,
+    "mae": 0.3774,
+    "r2": 0.5975,
+    "elegido": false
+  },
+  {
+    "modelo": "Mediana por municipio",
+    "rmse": 0.5564,
+    "rmse_sd": 0.0045,
+    "mae": 0.3607,
+    "r2": 0.5695,
+    "elegido": false
+  },
+  {
+    "modelo": "GradientBoosting (todas, opcional)",
+    "rmse": 0.582,
+    "rmse_sd": 0.008,
+    "mae": 0.413,
+    "r2": 0.5289,
+    "elegido": false
+  },
+  {
+    "modelo": "Ridge (satélite+topo)",
+    "rmse": 0.6344,
+    "rmse_sd": 0.0107,
+    "mae": 0.4932,
+    "r2": 0.4403,
+    "elegido": false
+  },
+  {
+    "modelo": "Media global",
+    "rmse": 0.8498,
+    "rmse_sd": 0.001,
+    "mae": 0.75,
+    "r2": -0.004,
+    "elegido": false
+  }
+]
