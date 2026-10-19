@@ -6,7 +6,7 @@ import {
   Upload,
   X,
 } from 'lucide-react';
-import { getBackendUrl, setBackendUrl } from '../services/api';
+import { checkBackendHealth, getBackendUrl, setBackendUrl } from '../services/api';
 import { Button, IconButton, Tag, cn } from './ui';
 
 export interface BackendConnectModalProps {
@@ -85,8 +85,16 @@ export const BackendConnectModal: React.FC<BackendConnectModalProps> = ({
     setConnectMessage(null);
     setBackendUrl(urlInput);
     try {
+      const healthy = await checkBackendHealth();
       await onReconnect();
-      setConnectAttempted(true);
+      if (healthy) {
+        setConnectMessage({
+          type: 'success',
+          text: 'Conectado exitosamente con la API del backend (/health y /api/v1/* activos).',
+        });
+      } else {
+        setConnectAttempted(true);
+      }
     } finally {
       setIsTesting(false);
     }
@@ -295,7 +303,7 @@ export const BackendConnectModal: React.FC<BackendConnectModalProps> = ({
           {/* Section: Endpoints esperados */}
           <details className="group border border-m3-outline-variant/60 rounded-m3-md overflow-hidden">
             <summary className="p-3 text-title-s font-medium text-m3-on-surface bg-m3-surface-container cursor-pointer select-none flex items-center justify-between list-none state-layer">
-              <span>Endpoints esperados</span>
+              <span>Endpoints integrados (/api/* y /api/v1/*)</span>
               <span className="text-body-s text-m3-on-surface-variant transition-transform duration-200 group-open:rotate-180">
                 ▾
               </span>
@@ -303,16 +311,19 @@ export const BackendConnectModal: React.FC<BackendConnectModalProps> = ({
             <div className="p-3 bg-m3-surface-container-low border-t border-m3-outline-variant/30">
               <pre className="bg-m3-inverse-surface text-m3-inverse-on-surface rounded-m3-md p-4 font-mono text-body-s overflow-x-auto leading-relaxed">
 {`GET  /api/parcels
-  -> Devuelve Array de las 197 parcelas (70% split: "train", 30% split: "eval")
-     con coordenadas [lng, lat], polígono exterior, subDivisions[] (lotes internos)
-     y evaluations[] (fechas de toma satelital con NDVI, NDWI, EVI, lluvia, temp).
-
-POST /api/predict
-  -> Body: { state, altitudeM, regime, ndviEspigado, ndwiLlenado, eviEncanado, precipJulAgoMm, tempMinSepC }
-  -> Respuesta: { predictedYieldTonHa, confidenceInterval: [min, max], firaCreditScore, riskLevel }
+  -> 197 parcelas georreferenciadas (70% train, 30% eval), sub-lotes A/B/C y 6 fechas Sentinel-2.
 
 GET  /api/model-insights
-  -> Devuelve métricas (RMSE, MAE, R2) y datos de las 3 Preguntas Guía de FIRA.`}
+  -> Métricas de validación cruzada y las 3 Preguntas Guía FIRA.
+
+POST /api/predict
+  -> Inferencia interactiva con NDVI, NDWI, EVI, lluvia, temperatura y GDD.
+
+GET  /api/v1/meta | /api/v1/modelos | /api/v1/municipios
+  -> Metadatos del modelo ganador, comparativa de 9 modelos y métricas por municipio.
+
+GET  /api/v1/parcelas | /api/v1/parcelas/{id} | /api/v1/export/anexo.csv
+  -> 59 parcelas del Anexo FIRA con desglose (mediana municipal + ajuste Ridge) y exportación CSV.`}
               </pre>
             </div>
           </details>
@@ -328,3 +339,4 @@ GET  /api/model-insights
     </div>
   );
 };
+

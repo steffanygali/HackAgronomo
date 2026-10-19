@@ -1,13 +1,17 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Award,
   Calculator,
   Cpu,
   Download,
+  FileCheck2,
   FileSpreadsheet,
   Info,
+  Layers,
+  MapPin,
   Play,
   RotateCcw,
+  Search,
   Sparkles,
   Table,
 } from 'lucide-react';
@@ -16,14 +20,30 @@ import {
   FinancialSimulationParams,
   ModelInsightsPayload,
   StateName,
+  V1Meta,
+  V1Modelo,
+  V1Municipio,
+  V1ParcelaEvaluacion,
 } from '../types/agro';
 import {
   calculateParcelFinancials,
+  downloadOfficialAnexoCsv,
   exportPredictionsCsv,
+  fetchV1Meta,
+  fetchV1Modelos,
+  fetchV1Municipios,
+  fetchV1ParcelaDetalle,
+  fetchV1Parcelas,
   LivePredictionInput,
   LivePredictionResponse,
   runLivePrediction,
 } from '../services/api';
+import {
+  INITIAL_V1_META,
+  INITIAL_V1_MODELOS,
+  INITIAL_V1_MUNICIPIOS,
+  INITIAL_V1_PARCELAS,
+} from '../data/mockBarleyDataset';
 import {
   Button,
   Card,
@@ -58,6 +78,57 @@ export const AnalystView: React.FC<AnalystViewProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<AnalystTab>('simulator');
   const [tableSplitFilter, setTableSplitFilter] = useState<'all' | 'eval' | 'train'>('all');
+  const [tableMode, setTableMode] = useState<'geo197' | 'v1anexo59'>('geo197');
+
+  // Datos de la API v1 (/api/v1/*)
+  const [v1Meta, setV1Meta] = useState<V1Meta>(INITIAL_V1_META);
+  const [v1Modelos, setV1Modelos] = useState<V1Modelo[]>(INITIAL_V1_MODELOS);
+  const [v1Municipios, setV1Municipios] = useState<V1Municipio[]>(INITIAL_V1_MUNICIPIOS);
+  const [v1Parcelas, setV1Parcelas] = useState<V1ParcelaEvaluacion[]>(INITIAL_V1_PARCELAS);
+  const [v1MunicipioFilter, setV1MunicipioFilter] = useState<string>('ALL');
+  const [v1SearchQuery, setV1SearchQuery] = useState<string>('');
+  const [selectedV1Parcela, setSelectedV1Parcela] = useState<V1ParcelaEvaluacion | null>(
+    INITIAL_V1_PARCELAS[0] ?? null
+  );
+  const [isDownloadingAnexo, setIsDownloadingAnexo] = useState(false);
+
+  // Cargar datos de /api/v1/* al montar o actualizar insights
+  useEffect(() => {
+    let active = true;
+    Promise.all([
+      fetchV1Meta(),
+      fetchV1Modelos(),
+      fetchV1Municipios(),
+      fetchV1Parcelas(),
+    ]).then(([meta, modelos, municipios, parcelasV1]) => {
+      if (!active) return;
+      setV1Meta(meta);
+      setV1Modelos(modelos);
+      setV1Municipios(municipios);
+      setV1Parcelas(parcelasV1);
+      if (parcelasV1.length > 0) {
+        setSelectedV1Parcela(parcelasV1[0]);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [modelInsights]);
+
+  // Filtrar parcelas de /api/v1/parcelas usando los parámetros ?municipio= y ?q= del backend
+  useEffect(() => {
+    let active = true;
+    fetchV1Parcelas({
+      municipio: v1MunicipioFilter === 'ALL' ? undefined : v1MunicipioFilter,
+      q: v1SearchQuery.trim() || undefined,
+    }).then((rows) => {
+      if (!active) return;
+      setV1Parcelas(rows);
+    });
+    return () => {
+      active = false;
+    };
+  }, [v1MunicipioFilter, v1SearchQuery]);
 
   // Estado para el laboratorio de predicción en vivo (POST /api/predict)
   const [liveInput, setLiveInput] = useState<LivePredictionInput>({
@@ -76,6 +147,28 @@ export const AnalystView: React.FC<AnalystViewProps> = ({
   });
   const [liveResult, setLiveResult] = useState<LivePredictionResponse | null>(null);
   const [isPredicting, setIsPredicting] = useState(false);
+
+  // Sincronizar automáticamente los parámetros de inferencia y la parcela v1 cuando cambia la parcela activa
+  useEffect(() => {
+    setLiveInput({
+      parcelId: selectedParcel.id,
+      state: selectedParcel.state,
+      altitudeM: selectedParcel.altitudeM,
+      regime: selectedParcel.regime,
+      ndviEspigado: selectedParcel.evaluations[3]?.ndvi ?? 0.72,
+      ndwiLlenado: selectedParcel.evaluations[4]?.ndwi ?? 0.31,
+      eviEncanado: selectedParcel.evaluations[2]?.evi ?? 0.56,
+      precipJulAgoMm:
+        (selectedParcel.evaluations[2]?.precipMm ?? 120) +
+        (selectedParcel.evaluations[3]?.precipMm ?? 135),
+      tempMinSepC: selectedParcel.evaluations[4]?.tempMinC ?? 7.4,
+      gddTotal: selectedParcel.evaluations[5]?.gdd ?? 1580,
+    });
+    const matchV1 = v1Parcelas.find((r) => r.id === selectedParcel.id);
+    if (matchV1) {
+      setSelectedV1Parcela(matchV1);
+    }
+  }, [selectedParcel.id, v1Parcelas]);
 
   // Simulación financiera agregada sobre las parcelas
   const regionalSimulation = useMemo(() => {
@@ -171,6 +264,27 @@ export const AnalystView: React.FC<AnalystViewProps> = ({
       setLiveResult(res);
     } finally {
       setIsPredicting(false);
+    }
+  };
+
+  const handleSelectV1Row = async (row: V1ParcelaEvaluacion) => {
+    setSelectedV1Parcela(row);
+    const matchingParcel = parcels.find((p) => p.id === row.id);
+    if (matchingParcel) {
+      onSelectParcel(matchingParcel);
+    }
+    const detail = await fetchV1ParcelaDetalle(row.id);
+    if (detail) {
+      setSelectedV1Parcela(detail);
+    }
+  };
+
+  const handleDownloadOfficialAnexo = async () => {
+    setIsDownloadingAnexo(true);
+    try {
+      await downloadOfficialAnexoCsv();
+    } finally {
+      setIsDownloadingAnexo(false);
     }
   };
 
@@ -312,9 +426,27 @@ export const AnalystView: React.FC<AnalystViewProps> = ({
                 ]}
               />
 
-              <div className="text-body-s text-m3-on-surface-variant pt-1">
-                Tasa de avío {financialParams.annualInterestRatePct} % anual
-              </div>
+              {/* Slider 5: Tasa de interés anual */}
+              <Slider
+                tone="tertiary"
+                label="Tasa de interés anual (avío)"
+                valueLabel={`${financialParams.annualInterestRatePct} % anual`}
+                min={8}
+                max={18}
+                step={0.5}
+                value={financialParams.annualInterestRatePct}
+                onChange={(v) =>
+                  onUpdateFinancialParams({
+                    ...financialParams,
+                    annualInterestRatePct: v,
+                  })
+                }
+                marks={[
+                  { value: 8, label: '8 %' },
+                  { value: 11.5, label: '11.5 % FIRA' },
+                  { value: 18, label: '18 %' },
+                ]}
+              />
             </div>
           </div>
 
@@ -424,41 +556,73 @@ export const AnalystView: React.FC<AnalystViewProps> = ({
           {/* Selected parcel audit */}
           <Card variant="outlined">
             <div className="flex flex-wrap items-center justify-between gap-2 pb-3 mb-3 border-b border-m3-outline-variant/30">
-              <div className="flex items-center gap-2 min-w-0">
-                <span className="font-mono text-body-s font-medium px-2 py-0.5 rounded-m3-xs bg-m3-surface-container-high text-m3-on-surface shrink-0">
-                  {selectedParcel.id}
-                </span>
-                <span className="text-title-s font-medium text-m3-on-surface truncate">
-                  {selectedParcel.name}
-                </span>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-body-s font-medium px-2 py-0.5 rounded-m3-xs bg-m3-surface-container-high text-m3-on-surface shrink-0">
+                    {selectedParcel.id}
+                  </span>
+                  <span className="text-title-s font-medium text-m3-on-surface truncate">
+                    {selectedParcel.name}
+                  </span>
+                </div>
+                <div className="text-body-s text-m3-on-surface-variant mt-1">
+                  {selectedParcel.producerName} · {selectedParcel.municipality}, {selectedParcel.state} ·{' '}
+                  {selectedParcel.variety} ({selectedParcel.regime}, {selectedParcel.altitudeM} msnm)
+                </div>
               </div>
-              {selectedParcel.split === 'eval' ? (
-                <Tag tone="tertiary">Evaluación 30%</Tag>
-              ) : (
-                <Tag tone="primary">
-                  {`Entrenamiento 70%, real ${selectedParcel.actualYieldTonHa ?? 'N/D'} t/ha`}
+              <div className="flex flex-wrap items-center gap-1.5">
+                {selectedParcel.split === 'eval' ? (
+                  <Tag tone="tertiary">Evaluación 30%</Tag>
+                ) : (
+                  <Tag tone="primary">
+                    {`Entrenamiento 70%, real ${selectedParcel.actualYieldTonHa ?? 'N/D'} t/ha`}
+                  </Tag>
+                )}
+                <Tag
+                  tone={
+                    selectedParcel.riskLevel === 'Bajo'
+                      ? 'primary'
+                      : selectedParcel.riskLevel === 'Moderado'
+                      ? 'tertiary'
+                      : 'error'
+                  }
+                >
+                  Riesgo {selectedParcel.riskLevel.toLowerCase()} ({selectedParcel.firaCreditScore}/100)
                 </Tag>
-              )}
+              </div>
             </div>
 
             <div className="divide-y divide-m3-outline-variant/20 text-body-m">
               <div className="flex items-center justify-between py-2">
-                <span className="text-m3-on-surface-variant">Rendimiento ajustado</span>
+                <span className="text-m3-on-surface-variant">Rendimiento ajustado (IC 90 %)</span>
                 <span className="text-title-s font-medium text-m3-on-surface tabular-nums">
                   {regionalSimulation.selectedParcelFin.adjustedYieldTonHa} t/ha (
-                  {regionalSimulation.selectedParcelFin.totalProductionTons} t)
+                  {selectedParcel.confidenceInterval[0]}–{selectedParcel.confidenceInterval[1]} t/ha)
                 </span>
               </div>
               <div className="flex items-center justify-between py-2">
-                <span className="text-m3-on-surface-variant">Ingreso bruto</span>
+                <span className="text-m3-on-surface-variant">Punto de equilibrio</span>
                 <span className="text-title-s font-medium text-m3-on-surface tabular-nums">
-                  ${regionalSimulation.selectedParcelFin.grossIncomeMxn.toLocaleString('es-MX')}
+                  {regionalSimulation.selectedParcelFin.breakEvenYieldTonHa} t/ha
+                </span>
+              </div>
+              <div className="flex items-center justify-between py-2">
+                <span className="text-m3-on-surface-variant">Ingreso bruto ({selectedParcel.areaHa} ha)</span>
+                <span className="text-title-s font-medium text-m3-on-surface tabular-nums">
+                  ${regionalSimulation.selectedParcelFin.grossIncomeMxn.toLocaleString('es-MX')} (
+                  {regionalSimulation.selectedParcelFin.totalProductionTons} t)
                 </span>
               </div>
               <div className="flex items-center justify-between py-2">
                 <span className="text-m3-on-surface-variant">Costo avío y financiero</span>
                 <span className="text-title-s font-medium text-m3-on-surface tabular-nums">
                   ${regionalSimulation.selectedParcelFin.totalCostMxn.toLocaleString('es-MX')}
+                </span>
+              </div>
+              <div className="flex items-center justify-between py-2">
+                <span className="text-m3-on-surface-variant">Garantía FEGA protegida</span>
+                <span className="text-title-s font-medium text-m3-tertiary tabular-nums">
+                  ${regionalSimulation.selectedParcelFin.firaGuaranteedAmountMxn.toLocaleString('es-MX')}
                 </span>
               </div>
               <div className="flex items-center justify-between py-2">
@@ -489,7 +653,7 @@ export const AnalystView: React.FC<AnalystViewProps> = ({
                 className="inline-flex items-center gap-1.5 text-title-s font-medium text-m3-on-surface mb-2 cursor-help"
                 title={`Base del modelo 3.95 t/ha, predicción ${selectedParcel.predictedYieldTonHa} t/ha`}
               >
-                <span>Por qué esta predicción</span>
+                <span>Por qué esta predicción (atribución SHAP)</span>
                 <Info
                   className="w-3.5 h-3.5 text-m3-on-surface-variant/70 shrink-0"
                   aria-label="Explicabilidad SHAP"
@@ -556,10 +720,76 @@ export const AnalystView: React.FC<AnalystViewProps> = ({
         </div>
       )}
 
-      {/* TAB 2: MODELO */}
+      {/* TAB 2: MODELO & PREGUNTAS FIRA */}
       {activeTab === 'questions' && (
         <div className="space-y-4">
-          {/* Desempeño en validación cruzada */}
+          {/* Ficha técnica del modelo ganador (/api/v1/meta) */}
+          <Card variant="tonal-primary" className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <div className="text-label-m text-m3-on-primary-container/80">
+                  Arquitectura oficial del backend (/api/v1/meta)
+                </div>
+                <h3 className="text-title-m font-medium text-m3-on-primary-container">
+                  {v1Meta.modelo}
+                </h3>
+              </div>
+              <Tag tone="primary">{`Semiancho IC 90 %: ±${v1Meta.semiancho_global_90} t/ha`}</Tag>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2 pt-1">
+              <Metric
+                size="sm"
+                label="RMSE CV"
+                value={`${v1Meta.metricas.rmse.toFixed(3)} t/ha`}
+              />
+              <Metric
+                size="sm"
+                label="MAE CV"
+                value={`${v1Meta.metricas.mae.toFixed(3)} t/ha`}
+              />
+              <Metric
+                size="sm"
+                label="R² CV"
+                value={v1Meta.metricas.r2.toFixed(3)}
+              />
+            </div>
+
+            <div className="rounded-m3-sm bg-m3-surface/80 p-3 text-body-s text-m3-on-surface space-y-1">
+              {v1Meta.nota_permutaciones && (
+                <>
+                  <div className="font-medium text-m3-on-surface">
+                    Prueba de permutaciones (máx. correlación |r| ={' '}
+                    {v1Meta.nota_permutaciones.max_correlacion.toFixed(4)} vs. umbral{' '}
+                    {v1Meta.nota_permutaciones.umbral})
+                  </div>
+                  <p className="text-m3-on-surface-variant">
+                    Fuente: {v1Meta.nota_permutaciones.fuente}
+                  </p>
+                </>
+              )}
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-1 text-label-s text-m3-on-surface-variant tabular-nums">
+                <span>Entrenamiento: {v1Meta.n_entrenamiento}</span>
+                <span>Evaluación: {v1Meta.n_prediccion}</span>
+                <span>Total: {v1Meta.n_parcelas_total}</span>
+                {v1Meta.versiones?.n_splits && v1Meta.versiones?.n_repeats && (
+                  <span>
+                    CV: {v1Meta.versiones.n_splits}×{v1Meta.versiones.n_repeats} (semilla{' '}
+                    {v1Meta.versiones.semilla ?? 42})
+                  </span>
+                )}
+                {v1Meta.versiones?.['scikit-learn'] && (
+                  <span>scikit-learn {v1Meta.versiones['scikit-learn']}</span>
+                )}
+                {v1Meta.versiones?.scipy && <span>SciPy {v1Meta.versiones.scipy}</span>}
+                {v1Meta.versiones?.pandas && <span>pandas {v1Meta.versiones.pandas}</span>}
+                {v1Meta.versiones?.numpy && <span>NumPy {v1Meta.versiones.numpy}</span>}
+                {v1Meta.versiones?.python && <span>Python {v1Meta.versiones.python}</span>}
+              </div>
+            </div>
+          </Card>
+
+          {/* Desempeño en validación cruzada (/api/model-insights) */}
           <Card variant="outlined" className="space-y-3">
             <CardHeader
               title={
@@ -567,7 +797,7 @@ export const AnalystView: React.FC<AnalystViewProps> = ({
                   className="inline-flex items-center gap-1.5 cursor-help"
                   title="138 parcelas con rendimiento conocido, 5 particiones espaciales"
                 >
-                  <span>Desempeño en validación cruzada</span>
+                  <span>Desempeño en validación cruzada (ensamble espacial)</span>
                   <Info
                     className="w-3.5 h-3.5 text-m3-on-surface-variant/70 shrink-0"
                     aria-label="138 parcelas con rendimiento conocido, 5 particiones espaciales"
@@ -626,22 +856,102 @@ export const AnalystView: React.FC<AnalystViewProps> = ({
             </div>
           </Card>
 
+          {/* Benchmark de 9 algoritmos evaluados (/api/v1/modelos) */}
+          <Card variant="outlined" className="space-y-3">
+            <CardHeader
+              title="Comparativa completa de 9 modelos (/api/v1/modelos)"
+              subtitle="Validación cruzada con desviación estándar de RMSE entre pliegues"
+            />
+            <div className="max-h-[260px] overflow-auto rounded-m3-sm border border-m3-outline-variant/60">
+              <table className="w-full text-left border-collapse text-body-s">
+                <thead className="sticky top-0 bg-m3-surface-container text-m3-on-surface-variant">
+                  <tr>
+                    <th className="py-2 px-3">Modelo</th>
+                    <th className="py-2 px-3 text-right">RMSE ± DE</th>
+                    <th className="py-2 px-3 text-right">MAE</th>
+                    <th className="py-2 px-3 text-right">R²</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-m3-outline-variant/30 tabular-nums">
+                  {v1Modelos.map((mod) => (
+                    <tr
+                      key={mod.modelo}
+                      className={cn(
+                        mod.elegido
+                          ? 'bg-m3-secondary-container/70 font-medium text-m3-on-secondary-container'
+                          : 'hover:bg-m3-surface-container-low'
+                      )}
+                    >
+                      <td className="py-2 px-3">
+                        <div className="flex items-center gap-1.5">
+                          <span>{mod.modelo}</span>
+                          {mod.elegido && <Tag tone="primary">Elegido</Tag>}
+                        </div>
+                      </td>
+                      <td className="py-2 px-3 text-right whitespace-nowrap">
+                        {mod.rmse.toFixed(3)} ± {mod.rmse_sd.toFixed(3)}
+                      </td>
+                      <td className="py-2 px-3 text-right">{mod.mae.toFixed(3)}</td>
+                      <td className="py-2 px-3 text-right">{mod.r2.toFixed(3)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+
+          {/* Resumen estadístico por municipio (/api/v1/municipios) */}
+          <Card variant="outlined" className="space-y-3">
+            <CardHeader
+              title="Desempeño y confianza por municipio (/api/v1/municipios)"
+              subtitle="Rendimiento medio predicho, semiancho al 90 % y tamaño muestral"
+            />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {v1Municipios.map((mun) => (
+                <div
+                  key={mun.municipio}
+                  className="rounded-m3-sm bg-m3-surface-container-low p-3 border border-m3-outline-variant/40 space-y-1.5"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-title-s font-medium text-m3-on-surface flex items-center gap-1">
+                      <MapPin className="w-3.5 h-3.5 text-m3-primary shrink-0" />
+                      {mun.municipio}
+                    </span>
+                    <Tag
+                      tone={
+                        mun.confianza === 'alta'
+                          ? 'primary'
+                          : mun.confianza === 'media'
+                          ? 'tertiary'
+                          : 'error'
+                      }
+                    >
+                      Confianza {mun.confianza}
+                    </Tag>
+                  </div>
+                  <div className="flex items-baseline justify-between text-body-s tabular-nums">
+                    <span className="text-m3-on-surface-variant">Media predicha:</span>
+                    <span className="font-medium text-m3-on-surface">
+                      {mun.rendimiento_medio_predicho.toFixed(2)} ± {mun.semiancho_90.toFixed(2)} t/ha
+                    </span>
+                  </div>
+                  <div className="text-label-s text-m3-on-surface-variant tabular-nums">
+                    Entrenamiento: {mun.n_entrenamiento} · Evaluación: {mun.n_prediccion} parcelas
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+
           {/* Pregunta Guía 1 */}
           <Card variant="outlined" className="space-y-3">
             <div className="flex items-center gap-2">
               <Tag tone="tertiary">Pregunta 1</Tag>
-              <h3
-                className="text-title-m font-medium text-m3-on-surface inline-flex items-center gap-1.5 cursor-help"
-                title="Importancia relativa calculada mediante valores SHAP sobre validación espacial"
-              >
-                <span>¿Qué índice de vegetación es más importante en la predicción?</span>
-                <Info
-                  className="w-3.5 h-3.5 text-m3-on-surface-variant/70 shrink-0"
-                  aria-label="Información de índices de vegetación"
-                />
+              <h3 className="text-title-m font-medium text-m3-on-surface">
+                ¿Qué índice de vegetación es más importante en la predicción?
               </h3>
             </div>
-            <div className="space-y-2 mt-3">
+            <div className="space-y-2.5 mt-2">
               {(() => {
                 const maxPct = Math.max(
                   ...modelInsights.guideQuestion1_VegetationIndices.map((i) => i.shapImportancePct),
@@ -653,21 +963,21 @@ export const AnalystView: React.FC<AnalystViewProps> = ({
                   return (
                     <div
                       key={idxItem.indexName}
-                      className="bg-m3-surface-container rounded-m3-md p-3 space-y-1.5 cursor-help"
-                      title={idxItem.interpretation}
+                      className="bg-m3-surface-container rounded-m3-md p-3 space-y-1.5"
                     >
                       <div className="flex flex-wrap items-baseline justify-between gap-2">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-title-s font-medium text-m3-on-surface">
-                            {idxItem.indexName}
-                          </span>
-                          <span className="text-body-s text-m3-on-surface-variant font-sans">
-                            [{idxItem.formula}]
-                          </span>
-                          <Info
-                            className="w-3 h-3 text-m3-on-surface-variant/60 shrink-0"
-                            aria-hidden="true"
-                          />
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-title-s font-medium text-m3-on-surface">
+                              {idxItem.indexName}
+                            </span>
+                            <span className="text-body-s text-m3-on-surface-variant">
+                              — {idxItem.fullName}
+                            </span>
+                          </div>
+                          <div className="text-label-s text-m3-on-surface-variant mt-0.5">
+                            Fórmula: {idxItem.formula} · Etapa crítica: {idxItem.criticalStage}
+                          </div>
                         </div>
                         <div className="flex items-center gap-2 text-body-s tabular-nums">
                           <span className="text-m3-on-surface-variant">r = {idxItem.pearsonR}</span>
@@ -682,6 +992,9 @@ export const AnalystView: React.FC<AnalystViewProps> = ({
                           style={{ width: `${widthPct}%` }}
                         />
                       </div>
+                      <p className="text-body-s text-m3-on-surface-variant pt-0.5">
+                        {idxItem.interpretation}
+                      </p>
                     </div>
                   );
                 });
@@ -693,39 +1006,28 @@ export const AnalystView: React.FC<AnalystViewProps> = ({
           <Card variant="outlined" className="space-y-3">
             <div className="flex items-center gap-2">
               <Tag tone="tertiary">Pregunta 2</Tag>
-              <h3
-                className="text-title-m font-medium text-m3-on-surface inline-flex items-center gap-1.5 cursor-help"
-                title="Impacto SHAP de las variables meteorológicas críticas"
-              >
-                <span>¿Qué variable climática tiene mayor peso?</span>
-                <Info
-                  className="w-3.5 h-3.5 text-m3-on-surface-variant/70 shrink-0"
-                  aria-label="Información de variables climáticas"
-                />
+              <h3 className="text-title-m font-medium text-m3-on-surface">
+                ¿Qué variable climática tiene mayor peso?
               </h3>
             </div>
-            <div className="space-y-2 mt-3">
+            <div className="space-y-2.5 mt-2">
               {modelInsights.guideQuestion2_ClimateVariables.map((clim) => (
                 <div
                   key={clim.variableName}
-                  className="bg-m3-surface-container rounded-m3-md p-3 space-y-1.5 cursor-help"
-                  title={clim.impactDescription}
+                  className="bg-m3-surface-container rounded-m3-md p-3 space-y-1.5"
                 >
                   <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-title-s font-medium text-m3-on-surface">
-                        {clim.variableName}
-                      </span>
-                      <Info
-                        className="w-3 h-3 text-m3-on-surface-variant/60 shrink-0"
-                        aria-hidden="true"
-                      />
-                    </div>
+                    <span className="text-title-s font-medium text-m3-on-surface">
+                      {clim.variableName}
+                    </span>
                     <Tag tone="tertiary">{clim.shapImportancePct} %</Tag>
                   </div>
                   <div className="text-body-s font-medium text-m3-primary bg-m3-surface-container-high rounded-m3-xs px-2.5 py-0.5 inline-block">
                     Rango óptimo: {clim.optimalRange}
                   </div>
+                  <p className="text-body-s text-m3-on-surface-variant">
+                    {clim.impactDescription}
+                  </p>
                 </div>
               ))}
             </div>
@@ -735,41 +1037,35 @@ export const AnalystView: React.FC<AnalystViewProps> = ({
           <Card variant="outlined" className="space-y-3">
             <div className="flex items-center gap-2">
               <Tag tone="tertiary">Pregunta 3</Tag>
-              <h3
-                className="text-title-m font-medium text-m3-on-surface inline-flex items-center gap-1.5 cursor-help"
-                title="Estudio de ablación comparando combinaciones de índices y clima"
-              >
-                <span>¿Qué combinación de variables funciona mejor?</span>
-                <Info
-                  className="w-3.5 h-3.5 text-m3-on-surface-variant/70 shrink-0"
-                  aria-label="Información de combinaciones de variables"
-                />
+              <h3 className="text-title-m font-medium text-m3-on-surface">
+                ¿Qué combinación de variables funciona mejor?
               </h3>
             </div>
-            <div className="space-y-2 mt-3">
+            <div className="space-y-2.5 mt-2">
               {modelInsights.guideQuestion3_FeatureCombinations.map((combo) => {
                 if (combo.isWinner) {
                   return (
                     <Card
                       key={combo.combinationName}
                       variant="tonal-primary"
-                      className="space-y-1.5 cursor-help"
-                      title={`Variables: ${combo.featuresIncluded}`}
+                      className="space-y-1.5"
                     >
-                      <div className="flex items-center justify-between gap-2">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
                         <span className="text-title-s font-medium flex items-center gap-1.5">
                           <Sparkles className="w-4 h-4 text-m3-primary shrink-0" aria-hidden="true" />
                           <span>{combo.combinationName}</span>
-                          <Info
-                            className="w-3 h-3 text-m3-primary/70 shrink-0"
-                            aria-hidden="true"
-                          />
                         </span>
                         <Tag tone="primary">−{combo.gainVsBaselinePct} % de error vs. base</Tag>
                       </div>
+                      <p className="text-body-s text-m3-on-primary-container/85">
+                        Variables incluidas: {combo.featuresIncluded}
+                      </p>
                       <div className="flex items-center gap-4 text-body-s tabular-nums">
                         <span>
                           RMSE: <strong className="font-medium">{combo.rmse}</strong>
+                        </span>
+                        <span>
+                          MAE: <strong className="font-medium">{combo.mae}</strong>
                         </span>
                         <span>
                           R²: <strong className="font-medium">{combo.r2}</strong>
@@ -783,24 +1079,25 @@ export const AnalystView: React.FC<AnalystViewProps> = ({
                   <Card
                     key={combo.combinationName}
                     variant="outlined"
-                    className="space-y-1.5 cursor-help"
-                    title={`Variables: ${combo.featuresIncluded}`}
+                    className="space-y-1.5"
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-title-s font-medium text-m3-on-surface flex items-center gap-1.5">
-                        <span>{combo.combinationName}</span>
-                        <Info
-                          className="w-3 h-3 text-m3-on-surface-variant/60 shrink-0"
-                          aria-hidden="true"
-                        />
+                      <span className="text-title-s font-medium text-m3-on-surface">
+                        {combo.combinationName}
                       </span>
                       <span className="text-body-s font-medium text-m3-on-surface-variant tabular-nums">
                         −{combo.gainVsBaselinePct} % error
                       </span>
                     </div>
+                    <p className="text-body-s text-m3-on-surface-variant">
+                      Variables incluidas: {combo.featuresIncluded}
+                    </p>
                     <div className="flex items-center gap-4 text-body-s tabular-nums text-m3-on-surface-variant">
                       <span>
                         RMSE: <strong className="font-medium text-m3-on-surface">{combo.rmse}</strong>
+                      </span>
+                      <span>
+                        MAE: <strong className="font-medium text-m3-on-surface">{combo.mae}</strong>
                       </span>
                       <span>
                         R²: <strong className="font-medium text-m3-on-surface">{combo.r2}</strong>
@@ -833,7 +1130,7 @@ export const AnalystView: React.FC<AnalystViewProps> = ({
               size="sm"
               onClick={handleLoadSelectedIntoLive}
             >
-              Usar valores de {selectedParcel.id}
+              Restaurar valores de {selectedParcel.id}
             </Button>
           </div>
 
@@ -884,9 +1181,15 @@ export const AnalystView: React.FC<AnalystViewProps> = ({
                     min={2100}
                     max={3000}
                     value={liveInput.altitudeM}
-                    onChange={(e) =>
-                      setLiveInput({ ...liveInput, altitudeM: Number(e.target.value) })
-                    }
+                    onChange={(e) => {
+                      const parsed = Number(e.target.value);
+                      setLiveInput({
+                        ...liveInput,
+                        altitudeM: Number.isFinite(parsed)
+                          ? Math.min(5000, Math.max(0, parsed))
+                          : 0,
+                      });
+                    }}
                     className="h-12 w-full rounded-m3-xs border border-m3-outline bg-transparent px-3 pr-16 text-body-m font-sans tabular-nums text-m3-on-surface outline-none transition-colors focus:border-2 focus:border-m3-primary"
                   />
                   <span className="absolute right-3 text-body-s text-m3-on-surface-variant pointer-events-none">
@@ -968,6 +1271,22 @@ export const AnalystView: React.FC<AnalystViewProps> = ({
                   { value: 14, label: '14 °C' },
                 ]}
               />
+
+              <Slider
+                tone="tertiary"
+                label="Grados día acumulados (GDD)"
+                valueLabel={`${liveInput.gddTotal} GDD`}
+                min={1100}
+                max={1900}
+                step={10}
+                value={liveInput.gddTotal}
+                onChange={(v) => setLiveInput({ ...liveInput, gddTotal: v })}
+                marks={[
+                  { value: 1100, label: '1,100' },
+                  { value: 1500, label: '1,500 óptimo' },
+                  { value: 1900, label: '1,900' },
+                ]}
+              />
             </div>
 
             <Button
@@ -988,7 +1307,7 @@ export const AnalystView: React.FC<AnalystViewProps> = ({
                   size="lg"
                   label="Rendimiento estimado"
                   value={`${liveResult.predictedYieldTonHa.toFixed(2)} t/ha`}
-                  supporting={`Intervalo 95 %: ${liveResult.confidenceInterval[0]}–${liveResult.confidenceInterval[1]} t/ha`}
+                  supporting={`Intervalo 90 %: ${liveResult.confidenceInterval[0]}–${liveResult.confidenceInterval[1]} t/ha`}
                 />
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t border-m3-on-primary-container/15">
@@ -1024,7 +1343,7 @@ export const AnalystView: React.FC<AnalystViewProps> = ({
 
                 <div className="text-body-s text-m3-on-primary-container/75 pt-1">
                   Calculado con:{' '}
-                  {liveResult.source === 'backend' ? 'API del backend' : 'modelo local'}
+                  {liveResult.source === 'backend' ? 'API del backend (POST /api/predict)' : 'modelo local'}
                 </div>
               </Card>
             </div>
@@ -1035,25 +1354,30 @@ export const AnalystView: React.FC<AnalystViewProps> = ({
       {/* TAB 4: PARCELAS */}
       {activeTab === 'dataset-table' && (
         <div className="space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div
-              className="flex items-center gap-1.5 cursor-help"
-              title="138 parcelas de entrenamiento con rendimiento real y 59 de evaluación oficial para FIRA."
-            >
-              <h3 className="text-title-m font-medium text-m3-on-surface">Parcelas del reto</h3>
-              <Info
-                className="w-3.5 h-3.5 text-m3-on-surface-variant/70 shrink-0"
-                aria-label="138 de entrenamiento con rendimiento real y 59 de evaluación oficial para FIRA"
-              />
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <SegmentedButton<'geo197' | 'v1anexo59'>
+              options={[
+                { value: 'geo197', label: 'Mapa (197)', icon: <Layers className="w-4 h-4" /> },
+                {
+                  value: 'v1anexo59',
+                  label: 'Anexo FIRA v1 (59)',
+                  icon: <FileCheck2 className="w-4 h-4" />,
+                },
+              ]}
+              value={tableMode}
+              onChange={setTableMode}
+              size="sm"
+            />
+
+            <div className="flex flex-wrap items-center gap-1.5">
               <Button
                 variant="filled"
                 size="sm"
                 icon={<Download />}
-                onClick={() => exportPredictionsCsv(parcels, true)}
+                disabled={isDownloadingAnexo}
+                onClick={handleDownloadOfficialAnexo}
               >
-                Descargar CSV
+                {isDownloadingAnexo ? 'Descargando…' : 'Anexo FIRA CSV'}
               </Button>
               <Button
                 variant="outlined"
@@ -1061,116 +1385,286 @@ export const AnalystView: React.FC<AnalystViewProps> = ({
                 icon={<FileSpreadsheet />}
                 onClick={() => exportPredictionsCsv(parcels, false)}
               >
-                Exportar todo
+                Exportar 197
               </Button>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
-            <FilterChip
-              label="Todas"
-              count={parcels.length}
-              selected={tableSplitFilter === 'all'}
-              onClick={() => setTableSplitFilter('all')}
-            />
-            <FilterChip
-              label="Evaluación 30%"
-              count={parcels.filter((p) => p.split === 'eval').length}
-              selected={tableSplitFilter === 'eval'}
-              onClick={() => setTableSplitFilter('eval')}
-            />
-            <FilterChip
-              label="Entrenamiento 70%"
-              count={parcels.filter((p) => p.split === 'train').length}
-              selected={tableSplitFilter === 'train'}
-              onClick={() => setTableSplitFilter('train')}
-            />
-          </div>
+          {tableMode === 'geo197' ? (
+            <>
+              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+                <FilterChip
+                  label="Todas"
+                  count={parcels.length}
+                  selected={tableSplitFilter === 'all'}
+                  onClick={() => setTableSplitFilter('all')}
+                />
+                <FilterChip
+                  label="Evaluación 30%"
+                  count={parcels.filter((p) => p.split === 'eval').length}
+                  selected={tableSplitFilter === 'eval'}
+                  onClick={() => setTableSplitFilter('eval')}
+                />
+                <FilterChip
+                  label="Entrenamiento 70%"
+                  count={parcels.filter((p) => p.split === 'train').length}
+                  selected={tableSplitFilter === 'train'}
+                  onClick={() => setTableSplitFilter('train')}
+                />
+              </div>
 
-          <div className="max-h-[420px] overflow-auto rounded-m3-md border border-m3-outline-variant relative">
-            <table className="w-full text-left border-collapse text-body-m">
-              <thead className="sticky top-0 bg-m3-surface-container z-20 text-body-s font-medium text-m3-on-surface-variant">
-                <tr>
-                  <th className="py-2.5 px-3 sticky left-0 bg-m3-surface-container z-30 border-r border-m3-outline-variant whitespace-nowrap">
-                    ID
-                  </th>
-                  <th className="py-2.5 px-3 whitespace-nowrap">Estado</th>
-                  <th className="py-2.5 px-3 whitespace-nowrap">Conjunto</th>
-                  <th className="py-2.5 px-3 whitespace-nowrap">NDVI pico</th>
-                  <th className="py-2.5 px-3 whitespace-nowrap">Real</th>
-                  <th className="py-2.5 px-3 whitespace-nowrap">Predicho</th>
-                  <th className="py-2.5 px-3 whitespace-nowrap text-right">Ingreso</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-m3-outline-variant/30">
-                {filteredTableParcels.map((p) => {
-                  const fin = calculateParcelFinancials(p, financialParams);
-                  const isSel = p.id === selectedParcel.id;
-
-                  return (
-                    <tr
-                      key={p.id}
-                      role="row"
-                      aria-selected={isSel}
-                      tabIndex={0}
-                      onClick={() => onSelectParcel(p)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault();
-                          onSelectParcel(p);
-                        }
-                      }}
-                      className={cn(
-                        'h-11 transition-colors cursor-pointer select-none group focus:outline-none focus-visible:bg-m3-secondary-container/50',
-                        isSel
-                          ? 'bg-m3-secondary-container text-m3-on-secondary-container font-medium'
-                          : 'hover:bg-m3-surface-container'
-                      )}
-                    >
-                      <td
-                        className={cn(
-                          'py-2 px-3 font-mono sticky left-0 z-10 transition-colors border-r border-m3-outline-variant whitespace-nowrap',
-                          isSel
-                            ? 'bg-m3-secondary-container text-m3-on-secondary-container font-semibold'
-                            : 'bg-m3-surface-container-lowest group-hover:bg-m3-surface-container text-m3-on-surface font-medium'
-                        )}
-                      >
-                        {p.id}
-                      </td>
-                      <td className="py-2 px-3 whitespace-nowrap">
-                        {p.state}, {p.municipality.split(' ')[0]}
-                      </td>
-                      <td className="py-2 px-3 whitespace-nowrap">
-                        {p.split === 'eval' ? (
-                          <Tag tone="tertiary">Evaluación 30%</Tag>
-                        ) : (
-                          <Tag tone="primary">Entrenamiento 70%</Tag>
-                        )}
-                      </td>
-                      <td className="py-2 px-3 tabular-nums whitespace-nowrap">
-                        {(p.evaluations[3]?.ndvi ?? 0).toFixed(2)}
-                      </td>
-                      <td className="py-2 px-3 tabular-nums whitespace-nowrap">
-                        {p.actualYieldTonHa !== null ? (
-                          `${p.actualYieldTonHa.toFixed(2)} t/ha`
-                        ) : (
-                          <Tag tone="tertiary">Por estimar</Tag>
-                        )}
-                      </td>
-                      <td className="py-2 px-3 tabular-nums whitespace-nowrap text-m3-primary font-medium">
-                        {fin.adjustedYieldTonHa.toFixed(2)} t/ha
-                      </td>
-                      <td className="py-2 px-3 text-right tabular-nums whitespace-nowrap">
-                        ${fin.grossIncomeMxn.toLocaleString('es-MX')}
-                      </td>
+              <div className="max-h-[420px] overflow-auto rounded-m3-md border border-m3-outline-variant relative">
+                <table className="w-full text-left border-collapse text-body-m">
+                  <thead className="sticky top-0 bg-m3-surface-container z-20 text-body-s font-medium text-m3-on-surface-variant">
+                    <tr>
+                      <th className="py-2.5 px-3 sticky left-0 bg-m3-surface-container z-30 border-r border-m3-outline-variant whitespace-nowrap">
+                        ID
+                      </th>
+                      <th className="py-2.5 px-3 whitespace-nowrap">Estado y municipio</th>
+                      <th className="py-2.5 px-3 whitespace-nowrap">Conjunto</th>
+                      <th className="py-2.5 px-3 whitespace-nowrap">NDVI pico</th>
+                      <th className="py-2.5 px-3 whitespace-nowrap">Real</th>
+                      <th className="py-2.5 px-3 whitespace-nowrap">Predicho (IC 90 %)</th>
+                      <th className="py-2.5 px-3 whitespace-nowrap">Score FIRA</th>
+                      <th className="py-2.5 px-3 whitespace-nowrap text-right">Ingreso</th>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                  </thead>
+                  <tbody className="divide-y divide-m3-outline-variant/30">
+                    {filteredTableParcels.map((p) => {
+                      const fin = calculateParcelFinancials(p, financialParams);
+                      const isSel = p.id === selectedParcel.id;
+
+                      return (
+                        <tr
+                          key={p.id}
+                          role="row"
+                          aria-selected={isSel}
+                          tabIndex={0}
+                          onClick={() => onSelectParcel(p)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              onSelectParcel(p);
+                            }
+                          }}
+                          className={cn(
+                            'h-11 transition-colors cursor-pointer select-none group focus:outline-none focus-visible:bg-m3-secondary-container/50',
+                            isSel
+                              ? 'bg-m3-secondary-container text-m3-on-secondary-container font-medium'
+                              : 'hover:bg-m3-surface-container'
+                          )}
+                        >
+                          <td
+                            className={cn(
+                              'py-2 px-3 font-mono sticky left-0 z-10 transition-colors border-r border-m3-outline-variant whitespace-nowrap',
+                              isSel
+                                ? 'bg-m3-secondary-container text-m3-on-secondary-container font-semibold'
+                                : 'bg-m3-surface-container-lowest group-hover:bg-m3-surface-container text-m3-on-surface font-medium'
+                            )}
+                          >
+                            {p.id}
+                          </td>
+                          <td className="py-2 px-3 whitespace-nowrap">
+                            <div>{p.state}, {p.municipality.split(' ')[0]}</div>
+                            <div className="text-label-s text-m3-on-surface-variant">
+                              {p.variety} · {p.regime}
+                            </div>
+                          </td>
+                          <td className="py-2 px-3 whitespace-nowrap">
+                            {p.split === 'eval' ? (
+                              <Tag tone="tertiary">Evaluación 30%</Tag>
+                            ) : (
+                              <Tag tone="primary">Entrenamiento 70%</Tag>
+                            )}
+                          </td>
+                          <td className="py-2 px-3 tabular-nums whitespace-nowrap">
+                            {(p.evaluations[3]?.ndvi ?? 0).toFixed(2)}
+                          </td>
+                          <td className="py-2 px-3 tabular-nums whitespace-nowrap">
+                            {p.actualYieldTonHa !== null ? (
+                              `${p.actualYieldTonHa.toFixed(2)} t/ha`
+                            ) : (
+                              <Tag tone="tertiary">Por estimar</Tag>
+                            )}
+                          </td>
+                          <td className="py-2 px-3 tabular-nums whitespace-nowrap">
+                            <span className="text-m3-primary font-medium">
+                              {fin.adjustedYieldTonHa.toFixed(2)} t/ha
+                            </span>
+                            <span className="block text-label-s text-m3-on-surface-variant">
+                              [{p.confidenceInterval[0]}–{p.confidenceInterval[1]}]
+                            </span>
+                          </td>
+                          <td className="py-2 px-3 tabular-nums whitespace-nowrap">
+                            <Tag
+                              tone={
+                                p.riskLevel === 'Bajo'
+                                  ? 'primary'
+                                  : p.riskLevel === 'Moderado'
+                                  ? 'tertiary'
+                                  : 'error'
+                              }
+                            >
+                              {p.firaCreditScore}/100 · {p.riskLevel}
+                            </Tag>
+                          </td>
+                          <td className="py-2 px-3 text-right tabular-nums whitespace-nowrap">
+                            ${fin.grossIncomeMxn.toLocaleString('es-MX')}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          ) : (
+            <div className="space-y-3">
+              {/* Controles de filtrado para /api/v1/parcelas */}
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="relative flex-1 min-w-[160px] flex items-center h-9 bg-m3-surface-container rounded-full px-3">
+                  <Search className="w-3.5 h-3.5 text-m3-on-surface-variant mr-2 shrink-0" />
+                  <input
+                    type="text"
+                    value={v1SearchQuery}
+                    onChange={(e) => setV1SearchQuery(e.target.value)}
+                    placeholder="Filtrar ID o municipio (/api/v1/parcelas?q=)…"
+                    className="bg-transparent border-none outline-none w-full text-body-s text-m3-on-surface placeholder:text-m3-on-surface-variant/70"
+                  />
+                </div>
+                <select
+                  value={v1MunicipioFilter}
+                  onChange={(e) => setV1MunicipioFilter(e.target.value)}
+                  className="h-9 rounded-m3-xs border border-m3-outline bg-transparent px-2.5 text-body-s text-m3-on-surface focus:outline-none focus:border-m3-primary"
+                >
+                  <option value="ALL">Todos los municipios ({v1Municipios.length})</option>
+                  {v1Municipios.map((m) => (
+                    <option key={m.municipio} value={m.municipio}>
+                      {m.municipio} ({m.n_prediccion})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Desglose individual de /api/v1/parcelas/{id} */}
+              {selectedV1Parcela && (
+                <Card variant="tonal-secondary" className="space-y-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-title-s font-semibold px-2 py-0.5 rounded-m3-xs bg-m3-surface text-m3-on-surface">
+                        {selectedV1Parcela.id}
+                      </span>
+                      <span className="text-title-s font-medium text-m3-on-secondary-container">
+                        {selectedV1Parcela.municipio} · n={selectedV1Parcela.n_entrenamiento_municipio}
+                      </span>
+                      <span className="text-label-s text-m3-on-secondary-container/75 tabular-nums">
+                        ({selectedV1Parcela.lat.toFixed(4)}, {selectedV1Parcela.lon.toFixed(4)})
+                      </span>
+                    </div>
+                    <Tag
+                      tone={
+                        selectedV1Parcela.confianza === 'alta'
+                          ? 'primary'
+                          : selectedV1Parcela.confianza === 'media'
+                          ? 'tertiary'
+                          : 'error'
+                      }
+                    >
+                      Confianza {selectedV1Parcela.confianza} · {selectedV1Parcela.metodo}
+                    </Tag>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 pt-1 text-body-s tabular-nums">
+                    <div className="bg-m3-surface/70 rounded-m3-xs p-2">
+                      <div className="text-label-s text-m3-on-surface-variant">Mediana municipal</div>
+                      <div className="text-title-s font-medium text-m3-on-surface">
+                        {selectedV1Parcela.desglose
+                          ? `${selectedV1Parcela.desglose.mediana_municipal.toFixed(2)} t/ha`
+                          : 'N/A (k-NN)'}
+                      </div>
+                    </div>
+                    <div className="bg-m3-surface/70 rounded-m3-xs p-2">
+                      <div className="text-label-s text-m3-on-surface-variant">Ajuste Ridge</div>
+                      <div className="text-title-s font-medium text-m3-on-surface">
+                        {selectedV1Parcela.desglose
+                          ? `${
+                              selectedV1Parcela.desglose.ajuste_ridge >= 0
+                                ? `+${selectedV1Parcela.desglose.ajuste_ridge.toFixed(2)}`
+                                : selectedV1Parcela.desglose.ajuste_ridge.toFixed(2)
+                            } t/ha`
+                          : 'N/A (k-NN)'}
+                      </div>
+                    </div>
+                    <div className="bg-m3-surface/70 rounded-m3-xs p-2">
+                      <div className="text-label-s text-m3-on-surface-variant">Predicción final</div>
+                      <div className="text-title-s font-medium text-m3-primary">
+                        {selectedV1Parcela.prediccion_ton_ha.toFixed(2)} t/ha
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              )}
+
+              <div className="max-h-[360px] overflow-auto rounded-m3-md border border-m3-outline-variant relative">
+                <table className="w-full text-left border-collapse text-body-s">
+                  <thead className="sticky top-0 bg-m3-surface-container z-20 font-medium text-m3-on-surface-variant">
+                    <tr>
+                      <th className="py-2 px-3">ID FIRA</th>
+                      <th className="py-2 px-3">Municipio</th>
+                      <th className="py-2 px-3 text-right">Coordenadas</th>
+                      <th className="py-2 px-3 text-right">Predicho</th>
+                      <th className="py-2 px-3 text-right">IC 90 %</th>
+                      <th className="py-2 px-3">Confianza</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-m3-outline-variant/30 tabular-nums">
+                    {v1Parcelas.map((row) => {
+                      const isSel = selectedV1Parcela?.id === row.id;
+                      return (
+                        <tr
+                          key={row.id}
+                          onClick={() => handleSelectV1Row(row)}
+                          className={cn(
+                            'h-10 cursor-pointer transition-colors',
+                            isSel
+                              ? 'bg-m3-secondary-container text-m3-on-secondary-container font-medium'
+                              : 'hover:bg-m3-surface-container'
+                          )}
+                        >
+                          <td className="py-2 px-3 font-mono">{row.id}</td>
+                          <td className="py-2 px-3 font-sans">{row.municipio}</td>
+                          <td className="py-2 px-3 text-right text-m3-on-surface-variant">
+                            {row.lat.toFixed(3)}, {row.lon.toFixed(3)}
+                          </td>
+                          <td className="py-2 px-3 text-right text-m3-primary font-medium">
+                            {row.prediccion_ton_ha.toFixed(2)} t/ha
+                          </td>
+                          <td className="py-2 px-3 text-right text-m3-on-surface-variant">
+                            [{row.limite_inferior_90.toFixed(2)}–{row.limite_superior_90.toFixed(2)}]
+                          </td>
+                          <td className="py-2 px-3 font-sans">
+                            <Tag
+                              tone={
+                                row.confianza === 'alta'
+                                  ? 'primary'
+                                  : row.confianza === 'media'
+                                  ? 'tertiary'
+                                  : 'error'
+                              }
+                            >
+                              {row.confianza}
+                            </Tag>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
   );
 };
+

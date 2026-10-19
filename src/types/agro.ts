@@ -116,3 +116,70 @@ export interface ModelInsightsPayload {
     isWinner: boolean;
   }[];
 }
+
+// --- Contratos adicionales del Backend FastAPI (/api/v1/*) ---
+
+export interface V1Metricas {
+  rmse: number;
+  mae: number;
+  r2: number;
+}
+
+export interface V1NotaPermutaciones {
+  max_correlacion: number;
+  umbral: number;
+  fuente: string;
+}
+
+export interface V1Meta {
+  n_parcelas_total: number;
+  n_entrenamiento: number;
+  n_prediccion: number;
+  metricas: V1Metricas;
+  semiancho_global_90: number;
+  modelo: string;
+  generado_en: string;
+  nota_permutaciones?: V1NotaPermutaciones | null;
+  versiones?: Record<string, string | number> | null;
+}
+
+export interface V1Modelo {
+  modelo: string;
+  rmse: number;
+  rmse_sd: number;
+  mae: number;
+  r2: number;
+  elegido: boolean;
+}
+
+export type V1NivelConfianza = 'alta' | 'media' | 'baja';
+export type V1MetodoPrediccion = 'hibrido' | 'knn_otros';
+
+export interface V1Municipio {
+  municipio: string;
+  n_prediccion: number;
+  n_entrenamiento: number;
+  rendimiento_medio_predicho: number;
+  semiancho_90: number;
+  confianza: V1NivelConfianza;
+}
+
+export interface V1DesgloseParcela {
+  mediana_municipal: number;
+  ajuste_ridge: number;
+}
+
+export interface V1ParcelaEvaluacion {
+  id: string;
+  municipio: string;
+  lat: number;
+  lon: number;
+  prediccion_ton_ha: number;
+  limite_inferior_90: number;
+  limite_superior_90: number;
+  n_entrenamiento_municipio: number;
+  confianza: V1NivelConfianza;
+  metodo: V1MetodoPrediccion;
+  desglose: V1DesgloseParcela | null;
+}
+

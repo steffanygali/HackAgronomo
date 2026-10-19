@@ -18,6 +18,7 @@ import {
   StateName,
 } from './types/agro';
 import {
+  downloadOfficialAnexoCsv,
   exportPredictionsCsv,
   fetchBarleyParcels,
   fetchModelInsights,
@@ -44,9 +45,9 @@ export function App() {
   const [showMobileSearch, setShowMobileSearch] = useState(false);
 
   // Parcela activa, sub-lote activo e índice de fecha de evaluación satelital (0..5)
-  const [selectedParcelId, setSelectedParcelId] = useState<string>('P-HGO-001');
+  const [selectedParcelId, setSelectedParcelId] = useState<string>('AGC_003');
   const [selectedSubDivisionId, setSelectedSubDivisionId] = useState<string | null>(null);
-  const [evalIndex, setEvalIndex] = useState<number>(3); // Por defecto en Espigado y Floración (Ago 09)
+  const [evalIndex, setEvalIndex] = useState<number>(3); // Por defecto en Espigado y Floración (Ago 10)
   const [mapColorMode, setMapColorMode] = useState<MapColorMode>('yield');
 
   // Parámetros compartidos del simulador financiero
@@ -102,6 +103,17 @@ export function App() {
       );
     });
   }, [allParcels, stateFilter, searchQuery]);
+
+  // Si el usuario filtra por estado y la parcela activa no pertenece a ese estado, seleccionar la primera del filtro
+  useEffect(() => {
+    if (
+      filteredParcels.length > 0 &&
+      !filteredParcels.some((p) => p.id === selectedParcelId)
+    ) {
+      setSelectedParcelId(filteredParcels[0].id);
+      setSelectedSubDivisionId(null);
+    }
+  }, [stateFilter, filteredParcels, selectedParcelId]);
 
   const selectedParcel = useMemo(() => {
     return (
@@ -183,7 +195,7 @@ export function App() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Buscar ID, ejido..."
+                placeholder="Buscar ID, municipio, productor..."
                 className="bg-transparent border-none outline-none w-full text-body-m placeholder:text-m3-on-surface-variant/70 min-w-0"
               />
               {searchQuery && (
@@ -229,12 +241,21 @@ export function App() {
               className="shrink-0 min-w-0 sm:min-w-[280px] [&_button]:px-2 sm:[&_button]:px-4"
             />
 
-            {/* Botón de conexión backend con punto de estado de 8px */}
+            {/* Botón de conexión backend con estado claro */}
             <div className="relative shrink-0">
               <IconButton
                 variant="standard"
                 icon={<Server className="w-5 h-5" />}
-                aria-label="Conexión con backend"
+                aria-label={
+                  dataSource === 'backend'
+                    ? 'Conectado a la API del backend'
+                    : 'Usando datos locales integrados'
+                }
+                title={
+                  dataSource === 'backend'
+                    ? 'Conectado a la API del backend (clic para configurar)'
+                    : 'Usando datos locales integrados (clic para conectar API)'
+                }
                 onClick={() => setIsBackendModalOpen(true)}
                 className="w-9 h-9 sm:w-10 sm:h-10"
               />
@@ -352,7 +373,11 @@ export function App() {
                 variant="tonal"
                 size="md"
                 icon={<Download className="w-4 h-4" />}
-                onClick={() => exportPredictionsCsv(allParcels, true)}
+                onClick={() =>
+                  dataSource === 'backend'
+                    ? downloadOfficialAnexoCsv()
+                    : exportPredictionsCsv(allParcels, true)
+                }
                 className="shrink-0 text-label-m sm:text-label-l"
               >
                 Descargar CSV

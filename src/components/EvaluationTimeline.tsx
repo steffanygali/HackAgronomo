@@ -83,18 +83,23 @@ export const EvaluationTimeline: React.FC<EvaluationTimelineProps> = ({
           />
 
           <div>
-            <div className="text-title-s font-medium text-m3-on-surface">
-              {currentEval.stage}
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-title-s font-medium text-m3-on-surface">
+                {currentEval.stage}
+              </span>
+              <Tag tone="neutral" className="text-label-s h-5 px-2">
+                {currentEval.satellite}
+              </Tag>
             </div>
             <div className="text-body-s text-m3-on-surface-variant">
-              Toma {activeIndex + 1} de {evaluations.length},{' '}
-              {formatDateLong(currentEval.date)}, {currentEval.captureTime}
+              Toma {activeIndex + 1} de {evaluations.length} ·{' '}
+              {formatDateLong(currentEval.date)} · {currentEval.captureTime}
             </div>
           </div>
         </div>
 
-        {/* Métricas: en md+ horizontal, en móvil (< md) cuadrícula 2x2 */}
-        <div className="grid grid-cols-2 md:flex md:items-center gap-2 md:gap-6 bg-m3-surface-container/60 p-2 md:p-0 rounded-m3-sm md:bg-transparent">
+        {/* Métricas completas de la evaluación satelital */}
+        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 md:gap-4 bg-m3-surface-container/60 p-2 md:p-0 rounded-m3-sm md:bg-transparent">
           <Metric
             label="NDVI"
             value={currentEval.ndvi.toFixed(3)}
@@ -102,18 +107,28 @@ export const EvaluationTimeline: React.FC<EvaluationTimelineProps> = ({
             tone="primary"
           />
           <Metric
-            label="NDWI (humedad)"
+            label="NDWI (hum.)"
             value={`${currentEval.ndwi.toFixed(2)} (${currentEval.soilMoisturePct}%)`}
             size="sm"
           />
           <Metric
-            label="Lluvia mm"
+            label="EVI / SAVI"
+            value={`${currentEval.evi.toFixed(2)} / ${currentEval.savi.toFixed(2)}`}
+            size="sm"
+          />
+          <Metric
+            label="Lluvia"
             value={`${currentEval.precipMm} mm`}
             size="sm"
           />
           <Metric
             label="Temp máx/mín"
-            value={`${currentEval.tempMaxC}° / ${currentEval.tempMinC}°C`}
+            value={`${currentEval.tempMaxC}°/${currentEval.tempMinC}°C`}
+            size="sm"
+          />
+          <Metric
+            label="GDD acum."
+            value={`${currentEval.gdd}°D`}
             size="sm"
           />
         </div>

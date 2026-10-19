@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import maplibregl from 'maplibre-gl';
 import {
+  ChevronDown,
   ChevronUp,
   Grid,
   Layers,
@@ -24,11 +25,20 @@ interface ParcelMapProps {
 }
 
 const REGION_PRESETS: { label: string; center: [number, number]; zoom: number }[] = [
-  { label: 'Altiplano', center: [-98.32, 19.56], zoom: 8.35 },
-  { label: 'Apan, Hgo.', center: [-98.47, 19.71], zoom: 11.4 },
-  { label: 'Calpulalpan, Tlax.', center: [-98.54, 19.54], zoom: 11.4 },
-  { label: 'Oriental, Pue.', center: [-97.62, 19.46], zoom: 11.2 },
+  { label: 'Altiplano (197)', center: [-98.406, 19.755], zoom: 9.35 },
+  { label: 'Chignahuapan, Pue.', center: [-98.252, 19.865], zoom: 12.1 },
+  { label: 'Calpulalpan, Tlax.', center: [-98.549, 19.570], zoom: 11.8 },
+  { label: 'Singuilucan, Hgo.', center: [-98.398, 19.961], zoom: 12.1 },
+  { label: 'Almoloya, Hgo.', center: [-98.305, 19.782], zoom: 11.7 },
+  { label: 'Cuautepec, Hgo.', center: [-98.282, 19.923], zoom: 12.7 },
 ];
+
+const COLOR_MODE_LABELS: Record<MapColorMode, string> = {
+  yield: 'Rendimiento',
+  ndvi: 'NDVI',
+  ndwi: 'NDWI',
+  split: 'Partición',
+};
 
 function escapeHtml(val: unknown): string {
   return String(val ?? '')
@@ -97,15 +107,9 @@ export const ParcelMap: React.FC<ParcelMapProps> = ({
   const popupRef = useRef<maplibregl.Popup | null>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [basemapStyle, setBasemapStyle] = useState<'satellite' | 'topo'>('satellite');
-  const [isLayerPanelOpen, setIsLayerPanelOpen] = useState(true);
+  // Ambos dropdowns del mapa inician siempre cerrados por defecto
+  const [isLayerPanelOpen, setIsLayerPanelOpen] = useState(false);
   const [isSubLotsPanelOpen, setIsSubLotsPanelOpen] = useState(false);
-
-  // Auto-collapse on small screens (< 768px) on mount
-  useEffect(() => {
-    if (typeof window !== 'undefined' && window.innerWidth < 768) {
-      setIsLayerPanelOpen(false);
-    }
-  }, []);
 
   // Construir GeoJSON para las parcelas según el índice temporal seleccionado
   const parcelsGeoJson = useMemo(() => {
@@ -124,8 +128,15 @@ export const ParcelMap: React.FC<ParcelMapProps> = ({
             municipality: p.municipality,
             split: p.split,
             areaHa: p.areaHa,
+            altitudeM: p.altitudeM,
+            variety: p.variety,
+            regime: p.regime,
+            firaCreditScore: p.firaCreditScore,
+            riskLevel: p.riskLevel,
             predictedYield: p.predictedYieldTonHa,
             actualYield: p.actualYieldTonHa ?? -1,
+            ciLow: p.confidenceInterval[0],
+            ciHigh: p.confidenceInterval[1],
             ndvi: ev.ndvi,
             ndwi: ev.ndwi,
             precipMm: ev.precipMm,
@@ -159,8 +170,15 @@ export const ParcelMap: React.FC<ParcelMapProps> = ({
             municipality: p.municipality,
             split: p.split,
             areaHa: p.areaHa,
+            altitudeM: p.altitudeM,
+            variety: p.variety,
+            regime: p.regime,
+            firaCreditScore: p.firaCreditScore,
+            riskLevel: p.riskLevel,
             predictedYield: p.predictedYieldTonHa,
             actualYield: p.actualYieldTonHa ?? -1,
+            ciLow: p.confidenceInterval[0],
+            ciHigh: p.confidenceInterval[1],
             ndvi: ev.ndvi,
             ndwi: ev.ndwi,
             precipMm: ev.precipMm,
@@ -334,7 +352,7 @@ export const ParcelMap: React.FC<ParcelMapProps> = ({
               ],
             },
           },
-          // Borde de las 197 parcelas: selected #FFFFFF w3, eval #E2A529 w1.5, train rgba(255,255,255,0.55) w1
+          // Borde de las 197 parcelas: selected #FFFFFF w3, eval #E2A529 w1.8, train rgba(255,255,255,0.65) w1.2
           {
             id: 'parcels-outline',
             type: 'line',
@@ -345,60 +363,124 @@ export const ParcelMap: React.FC<ParcelMapProps> = ({
                 ['==', ['get', 'isSelected'], 1],
                 '#FFFFFF',
                 ['==', ['get', 'split'], 'eval'],
-                '#E2A529',
-                'rgba(255,255,255,0.55)',
+                '#FFDEA4',
+                'rgba(255,255,255,0.65)',
               ],
               'line-width': [
                 'case',
                 ['==', ['get', 'isSelected'], 1],
                 3,
                 ['==', ['get', 'split'], 'eval'],
-                1.5,
-                1,
+                1.8,
+                1.2,
               ],
             },
           },
-          // Capa de puntos para vista macro
+          // Halo exterior para destacar siempre la parcela seleccionada en cualquier nivel de zoom
           {
-            id: 'parcels-MacroCircle',
+            id: 'parcels-selected-halo',
             type: 'circle',
             source: 'barley-parcel-centers',
-            maxzoom: 13.5,
+            filter: ['==', ['get', 'isSelected'], 1],
+            maxzoom: 14.5,
             paint: {
               'circle-radius': [
                 'interpolate',
                 ['linear'],
                 ['zoom'],
-                7, 4.5,
-                10, 7.5,
-                12, 10,
+                7, 10,
+                10, 14,
+                13, 18,
+              ],
+              'circle-color': 'rgba(255, 222, 164, 0.22)',
+              'circle-stroke-color': '#FFDEA4',
+              'circle-stroke-width': 2.5,
+            },
+          },
+          // Capa de puntos para vista macro y media (con transición suave hacia los polígonos reales)
+          {
+            id: 'parcels-MacroCircle',
+            type: 'circle',
+            source: 'barley-parcel-centers',
+            maxzoom: 14.6,
+            paint: {
+              'circle-radius': [
+                'interpolate',
+                ['linear'],
+                ['zoom'],
+                7, ['case', ['==', ['get', 'isSelected'], 1], 7, 4.5],
+                10, ['case', ['==', ['get', 'isSelected'], 1], 9.5, 6.8],
+                12.5, ['case', ['==', ['get', 'isSelected'], 1], 11, 8.2],
+                14.5, 4,
               ],
               'circle-color': colorExpression(colorModeRef.current),
-              'circle-stroke-color': '#FFFFFF',
+              'circle-stroke-color': [
+                'case',
+                ['==', ['get', 'isSelected'], 1],
+                '#FFFFFF',
+                ['==', ['get', 'split'], 'eval'],
+                '#FFDEA4',
+                '#FFFFFF',
+              ],
               'circle-stroke-width': [
                 'case',
                 ['==', ['get', 'isSelected'], 1],
                 3,
-                1.5,
+                ['==', ['get', 'split'], 'eval'],
+                1.8,
+                1.2,
               ],
-              'circle-opacity': 0.92,
+              'circle-opacity': [
+                'interpolate',
+                ['linear'],
+                ['zoom'],
+                7, 0.94,
+                12.8, 0.9,
+                14.4, 0.18,
+              ],
             },
           },
-          // Relleno de las subdivisiones internas (usa rampa NDVI de M3)
+          // Etiquetas con el ID oficial FIRA (AGC_001..AGC_197) al acercarse a los clústeres
+          {
+            id: 'parcels-id-label',
+            type: 'symbol',
+            source: 'barley-parcel-centers',
+            minzoom: 11.8,
+            maxzoom: 15.2,
+            layout: {
+              'text-field': ['get', 'id'],
+              'text-font': ['Noto Sans Regular'],
+              'text-size': [
+                'interpolate',
+                ['linear'],
+                ['zoom'],
+                11.8, 10,
+                14, 11.5,
+              ],
+              'text-offset': [0, -1.2],
+              'text-anchor': 'bottom',
+              'text-allow-overlap': false,
+            },
+            paint: {
+              'text-color': [
+                'case',
+                ['==', ['get', 'isSelected'], 1],
+                '#FFDEA4',
+                '#FFFFFF',
+              ],
+              'text-halo-color': '#181D18',
+              'text-halo-width': 1.6,
+            },
+          },
+          // Relleno de las subdivisiones internas (Lote A, B, C)
           {
             id: 'subdivisions-fill',
             type: 'fill',
             source: 'parcel-subdivisions',
             paint: {
-              'fill-color': [
-                'interpolate',
-                ['linear'],
-                ['get', 'ndvi'],
-                0.2, '#B9822B',
-                0.45, '#D8C04A',
-                0.65, '#6DB56F',
-                0.85, '#1F5B2C',
-              ],
+              'fill-color': colorExpression(
+                colorModeRef.current === 'split' ? 'ndvi' : colorModeRef.current
+              ),
               'fill-opacity': [
                 'case',
                 ['==', ['get', 'isSelectedSub'], 1],
@@ -450,10 +532,10 @@ export const ParcelMap: React.FC<ParcelMapProps> = ({
         ],
       },
       attributionControl: false,
-      center: [-98.32, 19.56],
-      zoom: 8.35,
-      pitch: 28,
-      bearing: -4,
+      center: [-98.406, 19.755],
+      zoom: 9.35,
+      pitch: 24,
+      bearing: -3,
       maxZoom: 17.5,
       minZoom: 6.5,
     });
@@ -481,24 +563,34 @@ export const ParcelMap: React.FC<ParcelMapProps> = ({
           ? `<span style="background:#FFDEA4;color:#261900;border-radius:8px;padding:2px 8px;font-size:12px;font-weight:500;">Evaluación 30%</span>`
           : `<span style="background:#B3F1B6;color:#00210A;border-radius:8px;padding:2px 8px;font-size:12px;font-weight:500;">Entrenamiento 70%</span>`;
 
+      const actualInfo =
+        Number(props.actualYield) >= 0
+          ? `Real: ${Number(props.actualYield).toFixed(2)} t/ha`
+          : `IC 90%: [${Number(props.ciLow).toFixed(2)} – ${Number(props.ciHigh).toFixed(2)}]`;
+
       popup
         .setLngLat(e.lngLat)
         .setHTML(
-          `<div style="min-width:210px;font-family:'Roboto Flex',Roboto,sans-serif;">
+          `<div style="min-width:236px;font-family:'Roboto Flex',Roboto,sans-serif;">
             <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px;">
-              <span style="font-family:'Roboto Mono',monospace;font-size:12px;font-weight:500;color:#EEF2E9;">${escapeHtml(props.id)}</span>
+              <span style="font-family:'Roboto Mono',monospace;font-size:12px;font-weight:600;color:#EEF2E9;">${escapeHtml(props.id)}</span>
               ${splitPill}
             </div>
             <div style="font-size:14px;font-weight:500;color:#EEF2E9;margin-bottom:2px;">${escapeHtml(props.name)}</div>
-            <div style="font-size:12px;color:#EEF2E9;opacity:0.8;margin-bottom:8px;">${escapeHtml(props.municipality)}, ${escapeHtml(props.state)} — ${escapeHtml(props.areaHa)} ha</div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;border-top:1px solid rgba(238,242,233,0.15);padding-top:8px;">
+            <div style="font-size:12px;color:#EEF2E9;opacity:0.85;margin-bottom:2px;">${escapeHtml(props.municipality)}, ${escapeHtml(props.state)} · ${escapeHtml(props.areaHa)} ha · ${escapeHtml(props.altitudeM)} msnm</div>
+            <div style="font-size:11px;color:#FFDEA4;opacity:0.92;margin-bottom:8px;font-variant-numeric:tabular-nums;">${escapeHtml(actualInfo)} · ${escapeHtml(props.regime)}</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;border-top:1px solid rgba(238,242,233,0.15);padding-top:8px;">
               <div>
                 <div style="font-size:11px;color:#EEF2E9;opacity:0.7;">Predicción</div>
-                <div style="font-size:16px;font-weight:500;color:#98D59C;font-variant-numeric:tabular-nums;">${Number(props.predictedYield).toFixed(2)} t/ha</div>
+                <div style="font-size:15px;font-weight:500;color:#98D59C;font-variant-numeric:tabular-nums;">${Number(props.predictedYield).toFixed(2)} t/ha</div>
               </div>
               <div>
-                <div style="font-size:11px;color:#EEF2E9;opacity:0.7;">NDVI ${escapeHtml(props.date)}</div>
-                <div style="font-size:16px;font-weight:500;color:#EEF2E9;font-variant-numeric:tabular-nums;">${Number(props.ndvi).toFixed(3)}</div>
+                <div style="font-size:11px;color:#EEF2E9;opacity:0.7;">NDVI</div>
+                <div style="font-size:15px;font-weight:500;color:#EEF2E9;font-variant-numeric:tabular-nums;">${Number(props.ndvi).toFixed(2)}</div>
+              </div>
+              <div>
+                <div style="font-size:11px;color:#EEF2E9;opacity:0.7;">Score FIRA</div>
+                <div style="font-size:15px;font-weight:500;color:#FFDEA4;font-variant-numeric:tabular-nums;">${escapeHtml(props.firaCreditScore)}/100</div>
               </div>
             </div>
           </div>`
@@ -630,7 +722,49 @@ export const ParcelMap: React.FC<ParcelMapProps> = ({
     if (map.getLayer('parcels-MacroCircle')) {
       map.setPaintProperty('parcels-MacroCircle', 'circle-color', expr);
     }
+    if (map.getLayer('subdivisions-fill')) {
+      map.setPaintProperty(
+        'subdivisions-fill',
+        'fill-color',
+        colorExpression(colorMode === 'split' ? 'ndvi' : colorMode)
+      );
+    }
   }, [mapLoaded, colorMode]);
+
+  // Volar automáticamente a la parcela seleccionada cuando cambia desde el buscador, botones Anterior/Siguiente o tablas
+  const prevSelectedIdRef = useRef<string>(selectedParcel.id);
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapLoaded) return;
+    if (prevSelectedIdRef.current === selectedParcel.id) return;
+    prevSelectedIdRef.current = selectedParcel.id;
+
+    map.flyTo({
+      center: selectedParcel.center,
+      zoom: Math.max(map.getZoom(), 14.6),
+      pitch: 34,
+      duration: 950,
+    });
+  }, [mapLoaded, selectedParcel.id, selectedParcel.center]);
+
+  // Ajustar encuadre (fitBounds) cuando el usuario cambia el filtro de estado (Todos / Hidalgo / Tlaxcala / Puebla)
+  const prevParcelCountRef = useRef<number>(parcels.length);
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapLoaded || parcels.length === 0) return;
+    if (prevParcelCountRef.current === parcels.length) return;
+    prevParcelCountRef.current = parcels.length;
+
+    const bounds = new maplibregl.LngLatBounds();
+    for (const p of parcels) {
+      bounds.extend(p.center);
+    }
+    map.fitBounds(bounds, {
+      padding: { top: 68, bottom: 52, left: 48, right: 48 },
+      maxZoom: 12.4,
+      duration: 900,
+    });
+  }, [mapLoaded, parcels]);
 
   // Cambiar mapa base Satélite vs Topográfico
   useEffect(() => {
@@ -678,8 +812,18 @@ export const ParcelMap: React.FC<ParcelMapProps> = ({
       {/* Contenedor WebGL de MapLibre */}
       <div ref={mapContainerRef} className="w-full h-full" />
 
-      {/* Barra superior izquierda: Presets de región y botón 'Ver sub-lotes' (No-scrollbar horizontal) */}
-      <div className="absolute top-3 left-3 max-w-[calc(100%-64px)] z-10 flex items-center gap-1.5 p-1 bg-m3-surface/95 backdrop-blur rounded-m3-lg shadow-m3-2 border border-m3-outline-variant/30 overflow-x-auto no-scrollbar">
+      {/* Barra superior izquierda: Presets de región y botón directo para enfocar la parcela activa */}
+      <div className="absolute top-3 left-3 max-w-[calc(100%-64px)] z-10 flex items-center gap-1 p-1 bg-m3-surface/95 backdrop-blur rounded-m3-lg shadow-m3-2 border border-m3-outline-variant/30 overflow-x-auto no-scrollbar">
+        <button
+          type="button"
+          onClick={handleFlyToParcel}
+          title={`Acercar cámara a la parcela ${selectedParcel.id}`}
+          className="h-8 px-2.5 rounded-m3-sm text-label-l font-medium bg-m3-secondary-container text-m3-on-secondary-container hover:opacity-90 transition-opacity whitespace-nowrap shrink-0 inline-flex items-center gap-1.5 cursor-pointer"
+        >
+          <LocateFixed className="w-3.5 h-3.5 shrink-0" />
+          <span className="font-mono">{selectedParcel.id}</span>
+        </button>
+        <div className="w-[1px] h-5 bg-m3-outline-variant/50 shrink-0 mx-0.5" />
         {REGION_PRESETS.map((preset) => (
           <button
             key={preset.label}
@@ -692,26 +836,27 @@ export const ParcelMap: React.FC<ParcelMapProps> = ({
         ))}
       </div>
 
-      {/* Contenedor flotante de paneles: Capa del mapa y Sub-lotes (top-16 con espacio cómodo) */}
+      {/* Contenedor flotante de dropdowns del mapa (inician siempre cerrados) */}
       <div className="absolute top-16 left-3 z-10 flex items-start gap-2 max-w-[calc(100%-24px)] pointer-events-none">
-        {/* Panel o botón de Capa del Mapa */}
+        {/* Dropdown 1: Capa del Mapa */}
         <div className="pointer-events-auto shrink-0">
           {!isLayerPanelOpen ? (
-            <IconButton
-              variant="tonal"
-              icon={<Layers className="w-5 h-5" />}
+            <button
+              type="button"
               aria-label="Abrir capas del mapa"
-              title="Capa del mapa"
+              aria-expanded={false}
               onClick={() => {
                 setIsLayerPanelOpen(true);
-                if (typeof window !== 'undefined' && window.innerWidth < 768) {
-                  setIsSubLotsPanelOpen(false);
-                }
+                setIsSubLotsPanelOpen(false);
               }}
-              className="shadow-m3-2 border border-m3-outline-variant/30 bg-m3-surface/95 backdrop-blur"
-            />
+              className="h-9 px-3 rounded-full shadow-m3-2 border border-m3-outline-variant/40 bg-m3-surface/95 backdrop-blur text-m3-on-surface text-label-m font-medium inline-flex items-center gap-1.5 state-layer cursor-pointer"
+            >
+              <Layers className="w-4 h-4 text-m3-primary shrink-0" />
+              <span>Capas: {COLOR_MODE_LABELS[colorMode]}</span>
+              <ChevronDown className="w-4 h-4 text-m3-on-surface-variant shrink-0" />
+            </button>
           ) : (
-            <div className="w-[256px] bg-m3-surface/95 backdrop-blur rounded-m3-lg shadow-m3-2 border border-m3-outline-variant/30 p-3 text-m3-on-surface">
+            <div className="w-[264px] bg-m3-surface/95 backdrop-blur rounded-m3-lg shadow-m3-2 border border-m3-outline-variant/30 p-3 text-m3-on-surface">
               <div className="flex items-center justify-between gap-2 mb-2">
                 <div className="flex items-center gap-1.5 text-title-s font-medium text-m3-on-surface">
                   <Layers className="w-4 h-4 text-m3-primary" />
@@ -799,34 +944,35 @@ export const ParcelMap: React.FC<ParcelMapProps> = ({
 
               {/* Footer de la parcela activa */}
               <div className="mt-2.5 pt-2 border-t border-m3-outline-variant/40 text-body-s text-m3-on-surface-variant">
-                Parcela {selectedParcel.id}, 3 sub-lotes
+                Parcela {selectedParcel.id} · {selectedParcel.variety}
               </div>
             </div>
           )}
         </div>
 
-        {/* Panel o botón de Sub-lotes de la parcela */}
+        {/* Dropdown 2: Sub-lotes de la parcela */}
         <div className="pointer-events-auto shrink-0">
           {!isSubLotsPanelOpen ? (
-            <IconButton
-              variant="tonal"
-              icon={<Grid className="w-5 h-5" />}
+            <button
+              type="button"
               aria-label="Abrir sub-lotes"
-              title="Sub-lotes de la parcela"
+              aria-expanded={false}
               onClick={() => {
                 setIsSubLotsPanelOpen(true);
-                if (typeof window !== 'undefined' && window.innerWidth < 768) {
-                  setIsLayerPanelOpen(false);
-                }
+                setIsLayerPanelOpen(false);
               }}
-              className="shadow-m3-2 border border-m3-outline-variant/30 bg-m3-surface/95 backdrop-blur"
-            />
+              className="h-9 px-3 rounded-full shadow-m3-2 border border-m3-outline-variant/40 bg-m3-surface/95 backdrop-blur text-m3-on-surface text-label-m font-medium inline-flex items-center gap-1.5 state-layer cursor-pointer"
+            >
+              <Grid className="w-4 h-4 text-m3-primary shrink-0" />
+              <span>Sub-lotes ({selectedParcel.subDivisions.length})</span>
+              <ChevronDown className="w-4 h-4 text-m3-on-surface-variant shrink-0" />
+            </button>
           ) : (
-            <div className="w-[250px] bg-m3-surface/95 backdrop-blur rounded-m3-lg shadow-m3-2 border border-m3-outline-variant/30 p-3 text-m3-on-surface">
+            <div className="w-[268px] bg-m3-surface/95 backdrop-blur rounded-m3-lg shadow-m3-2 border border-m3-outline-variant/30 p-3 text-m3-on-surface">
               <div className="flex items-center justify-between gap-2 mb-2">
                 <div className="flex items-center gap-1.5 text-title-s font-medium text-m3-on-surface">
                   <Grid className="w-4 h-4 text-m3-primary" />
-                  Sub-lotes de la parcela
+                  Sub-lotes de {selectedParcel.id}
                 </div>
                 <IconButton
                   variant="standard"
@@ -844,30 +990,39 @@ export const ParcelMap: React.FC<ParcelMapProps> = ({
                 onClick={handleFlyToParcel}
                 className="w-full justify-center mb-2.5 text-label-s h-7"
               >
-                Enfocar en mapa
+                Enfocar parcela en mapa
               </Button>
 
               <div className="flex flex-col gap-1.5">
                 {selectedParcel.subDivisions.map((sub) => {
                   const isSelected = sub.id === selectedSubDivisionId;
                   const currentNdvi = sub.ndviByEval[evalIndex] ?? sub.ndviByEval[3] ?? sub.ndviByEval[0];
+                  const currentNdwi = sub.ndwiByEval[evalIndex] ?? sub.ndwiByEval[3] ?? sub.ndwiByEval[0];
                   return (
                     <button
                       key={sub.id}
                       type="button"
                       onClick={() => onSelectSubDivision(sub.id)}
-                      className={`w-full text-left p-2 rounded-m3-sm border transition-all flex items-center justify-between text-body-s cursor-pointer ${
+                      className={`w-full text-left p-2 rounded-m3-sm border transition-all flex items-center justify-between gap-2 text-body-s cursor-pointer ${
                         isSelected
                           ? 'bg-m3-primary-container text-m3-on-primary-container border-m3-primary font-medium shadow-sm'
                           : 'bg-m3-surface-container-low/80 hover:bg-m3-surface-container border-m3-outline-variant/40 text-m3-on-surface'
                       }`}
                     >
                       <div className="min-w-0">
-                        <div className="text-label-m font-medium truncate">{sub.name || sub.code}</div>
-                        <div className="text-[11px] opacity-75">NDVI {currentNdvi.toFixed(2)}</div>
+                        <div className="text-label-m font-medium truncate">
+                          {sub.code} · {sub.name}
+                        </div>
+                        <div className="text-[11px] opacity-80 truncate">
+                          {sub.soilType} · Pend. {sub.slopePct}%
+                        </div>
+                        <div className="text-[11px] opacity-75 tabular-nums">
+                          NDVI {currentNdvi.toFixed(2)} · NDWI {currentNdwi.toFixed(2)}
+                        </div>
                       </div>
-                      <div className="text-right shrink-0 font-mono text-label-s">
-                        {sub.predictedYieldTonHa} t/ha
+                      <div className="text-right shrink-0 tabular-nums">
+                        <div className="text-label-m font-medium">{sub.predictedYieldTonHa} t/ha</div>
+                        <div className="text-[11px] opacity-75">{sub.areaHa} ha</div>
                       </div>
                     </button>
                   );

@@ -1,5 +1,21 @@
-import { generate197BarleyParcels, INITIAL_MODEL_INSIGHTS } from '../data/mockBarleyDataset';
-import { BarleyParcel, FinancialSimulationParams, ModelInsightsPayload } from '../types/agro';
+import {
+  generate197BarleyParcels,
+  INITIAL_MODEL_INSIGHTS,
+  INITIAL_V1_META,
+  INITIAL_V1_MODELOS,
+  INITIAL_V1_MUNICIPIOS,
+  INITIAL_V1_PARCELAS,
+  mergeV1EvaluacionesIntoParcels,
+} from '../data/mockBarleyDataset';
+import {
+  BarleyParcel,
+  FinancialSimulationParams,
+  ModelInsightsPayload,
+  V1Meta,
+  V1Modelo,
+  V1Municipio,
+  V1ParcelaEvaluacion,
+} from '../types/agro';
 
 /**
  * Capa de integración con el Backend (FastAPI / Flask / Node).
@@ -11,15 +27,19 @@ import { BarleyParcel, FinancialSimulationParams, ModelInsightsPayload } from '.
 const STORAGE_KEY_API_URL = 'agrocebada_backend_url';
 
 export function getBackendUrl(): string {
-  return localStorage.getItem(STORAGE_KEY_API_URL) || import.meta.env.VITE_API_URL || '';
+  const stored = localStorage.getItem(STORAGE_KEY_API_URL);
+  if (stored !== null) {
+    return stored;
+  }
+  return (
+    import.meta.env.VITE_API_URL ||
+    import.meta.env.VITE_BACKEND_URL ||
+    'http://localhost:8000'
+  );
 }
 
 export function setBackendUrl(url: string): void {
-  if (!url.trim()) {
-    localStorage.removeItem(STORAGE_KEY_API_URL);
-  } else {
-    localStorage.setItem(STORAGE_KEY_API_URL, url.trim().replace(/\/+$/, ''));
-  }
+  localStorage.setItem(STORAGE_KEY_API_URL, url.trim().replace(/\/+$/, ''));
 }
 
 export async function fetchBarleyParcels(): Promise<{
@@ -29,17 +49,39 @@ export async function fetchBarleyParcels(): Promise<{
   const baseUrl = getBackendUrl();
   if (baseUrl) {
     try {
-      const res = await fetch(`${baseUrl}/api/parcels`, {
-        headers: { Accept: 'application/json' },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) {
-          return { parcels: data, source: 'backend' };
+      const [parcelsRes, v1EvalRes] = await Promise.allSettled([
+        fetch(`${baseUrl}/api/parcels`, { headers: { Accept: 'application/json' } }),
+        fetch(`${baseUrl}/api/v1/parcelas`, { headers: { Accept: 'application/json' } }),
+      ]);
+
+      let v1EvalRows: V1ParcelaEvaluacion[] = [];
+      if (v1EvalRes.status === 'fulfilled' && v1EvalRes.value.ok) {
+        const v1Data = await v1EvalRes.value.json();
+        if (Array.isArray(v1Data)) {
+          v1EvalRows = v1Data;
         }
-        if (data?.parcels && Array.isArray(data.parcels)) {
-          return { parcels: data.parcels, source: 'backend' };
+      }
+
+      if (parcelsRes.status === 'fulfilled' && parcelsRes.value.ok) {
+        const data = await parcelsRes.value.json();
+        const rawList: BarleyParcel[] = Array.isArray(data)
+          ? data
+          : Array.isArray(data?.parcels)
+          ? data.parcels
+          : [];
+        if (rawList.length > 0) {
+          return {
+            parcels: mergeV1EvaluacionesIntoParcels(rawList, v1EvalRows),
+            source: 'backend',
+          };
         }
+      }
+
+      if (v1EvalRows.length > 0) {
+        return {
+          parcels: mergeV1EvaluacionesIntoParcels(generate197BarleyParcels(), v1EvalRows),
+          source: 'backend',
+        };
       }
     } catch (err) {
       console.warn('Backend no disponible en', baseUrl, '- usando dataset local de 197 parcelas.', err);
@@ -228,10 +270,11 @@ export function exportPredictionsCsv(parcels: BarleyParcel[], onlyEval30Pct = tr
     ].join(',');
   });
 
-  const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + [headers.join(','), ...rows].join('\n');
-  const encodedUri = encodeURI(csvContent);
+  const csvString = '\uFEFF' + [headers.join(','), ...rows].join('\n');
+  const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
-  link.setAttribute('href', encodedUri);
+  link.setAttribute('href', url);
   link.setAttribute(
     'download',
     onlyEval30Pct
@@ -241,4 +284,183 @@ export function exportPredictionsCsv(parcels: BarleyParcel[], onlyEval30Pct = tr
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 }
+
+// --- Integración completa con el contrato /api/v1 del Backend FastAPI ---
+
+export async function checkBackendHealth(customUrl?: string): Promise<boolean> {
+  const baseUrl = (customUrl ?? getBackendUrl()).trim().replace(/\/+$/, '');
+  if (!baseUrl) return false;
+  try {
+    const res = await fetch(`${baseUrl}/health`, {
+      headers: { Accept: 'application/json' },
+    });
+    if (res.ok) return true;
+    const pingRes = await fetch(`${baseUrl}/api/v1/ping`, {
+      headers: { Accept: 'application/json' },
+    });
+    return pingRes.ok;
+  } catch {
+    return false;
+  }
+}
+
+export async function fetchV1Meta(): Promise<V1Meta> {
+  const baseUrl = getBackendUrl();
+  if (baseUrl) {
+    try {
+      const res = await fetch(`${baseUrl}/api/v1/meta`, {
+        headers: { Accept: 'application/json' },
+      });
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch {
+      // Fallback a metadatos precalculados
+    }
+  }
+  return INITIAL_V1_META;
+}
+
+export async function fetchV1Modelos(): Promise<V1Modelo[]> {
+  const baseUrl = getBackendUrl();
+  if (baseUrl) {
+    try {
+      const res = await fetch(`${baseUrl}/api/v1/modelos`, {
+        headers: { Accept: 'application/json' },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) return data;
+      }
+    } catch {
+      // Fallback a comparación de modelos local
+    }
+  }
+  return INITIAL_V1_MODELOS;
+}
+
+export async function fetchV1Municipios(): Promise<V1Municipio[]> {
+  const baseUrl = getBackendUrl();
+  if (baseUrl) {
+    try {
+      const res = await fetch(`${baseUrl}/api/v1/municipios`, {
+        headers: { Accept: 'application/json' },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) return data;
+      }
+    } catch {
+      // Fallback a municipios locales
+    }
+  }
+  return INITIAL_V1_MUNICIPIOS;
+}
+
+export async function fetchV1Parcelas(params?: {
+  municipio?: string;
+  q?: string;
+}): Promise<V1ParcelaEvaluacion[]> {
+  const baseUrl = getBackendUrl();
+  if (baseUrl) {
+    try {
+      const searchParams = new URLSearchParams();
+      if (params?.municipio && params.municipio !== 'ALL') {
+        searchParams.set('municipio', params.municipio);
+      }
+      if (params?.q && params.q.trim()) {
+        searchParams.set('q', params.q.trim());
+      }
+      const qs = searchParams.toString();
+      const res = await fetch(`${baseUrl}/api/v1/parcelas${qs ? `?${qs}` : ''}`, {
+        headers: { Accept: 'application/json' },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) return data;
+      }
+    } catch {
+      // Fallback a filtrado en cliente
+    }
+  }
+
+  return INITIAL_V1_PARCELAS.filter((p) => {
+    if (params?.municipio && params.municipio !== 'ALL' && p.municipio !== params.municipio) {
+      return false;
+    }
+    if (params?.q && params.q.trim()) {
+      const qLower = params.q.trim().toLowerCase();
+      return (
+        p.id.toLowerCase().includes(qLower) || p.municipio.toLowerCase().includes(qLower)
+      );
+    }
+    return true;
+  });
+}
+
+export async function fetchV1ParcelaDetalle(
+  parcelaId: string
+): Promise<V1ParcelaEvaluacion | null> {
+  const baseUrl = getBackendUrl();
+  if (baseUrl) {
+    try {
+      const res = await fetch(
+        `${baseUrl}/api/v1/parcelas/${encodeURIComponent(parcelaId)}`,
+        {
+          headers: { Accept: 'application/json' },
+        }
+      );
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch {
+      // Fallback a búsqueda local
+    }
+  }
+  return INITIAL_V1_PARCELAS.find((p) => p.id === parcelaId) ?? null;
+}
+
+export async function downloadOfficialAnexoCsv(): Promise<void> {
+  const baseUrl = getBackendUrl();
+  if (baseUrl) {
+    try {
+      const res = await fetch(`${baseUrl}/api/v1/export/anexo.csv`, {
+        headers: { Accept: 'text/csv' },
+      });
+      if (res.ok) {
+        const csvText = await res.text();
+        const blob = new Blob(['\uFEFF' + csvText], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.setAttribute('href', url);
+        link.setAttribute('download', 'predicciones_evaluacion_30_fira.csv');
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        return;
+      }
+    } catch {
+      // Fallback a generación local del anexo oficial
+    }
+  }
+
+  const lines = [
+    'ID_parcela,rendimiento_predicho_ton_ha',
+    ...INITIAL_V1_PARCELAS.map((p) => `${p.id},${p.prediccion_ton_ha.toFixed(3)}`),
+  ];
+  const blob = new Blob(['\uFEFF' + lines.join('\n') + '\n'], {
+    type: 'text/csv;charset=utf-8;',
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.setAttribute('href', url);
+  link.setAttribute('download', 'predicciones_evaluacion_30_fira.csv');
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
