@@ -40,3 +40,9 @@ MANIFEST
 # OS
 .DS_Store
 Thumbs.db
+
+# Test & Lint caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
