@@ -1,36 +1,17 @@
 """Exportes de los modelos Pydantic de la aplicación."""
 
-from app.models.error import ErrorDetail, ErrorResponse
-from app.models.fira import (
-    BarleyParcel,
-    LivePredictionInput,
-    LivePredictionResponse,
-    ModelInsightsPayload,
-    PhenologicalEvaluation,
-    ShapContribution,
-    SubParcelDivision,
-)
-from app.models.meta import Meta, Metricas, NotaPermutaciones
-from app.models.modelo import Modelo
+from app.models.error import ErrorResponse
+from app.models.meta import Meta, Metricas
 from app.models.municipio import Municipio
-from app.models.parcela import Desglose, FiltrosParcelas, Parcela
+from app.models.modelo import Modelo
+from app.models.parcela import FiltrosParcelas, Parcela
 
 __all__ = [
-    "BarleyParcel",
-    "Desglose",
-    "ErrorDetail",
-    "ErrorResponse",
+    "Parcela",
     "FiltrosParcelas",
-    "LivePredictionInput",
-    "LivePredictionResponse",
+    "Municipio",
+    "Modelo",
     "Meta",
     "Metricas",
-    "ModelInsightsPayload",
-    "Modelo",
-    "Municipio",
-    "NotaPermutaciones",
-    "Parcela",
-    "PhenologicalEvaluation",
-    "ShapContribution",
-    "SubParcelDivision",
+    "ErrorResponse",
 ]

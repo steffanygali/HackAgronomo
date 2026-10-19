@@ -1,18 +1,15 @@
-"""Fachada retrocompatible de carga y filtrado de datos estáticos (JSON/CSV).
+"""Carga los archivos estáticos de datos (JSON/CSV) que sirve la API.
 
-La aplicación principal usa ``app.repositories.datos_estaticos`` cargando todo en
-memoria durante el ``lifespan`` de FastAPI. Este módulo se conserva por
-retrocompatibilidad y corrige ``filtrar_parcelas`` para aceptar tanto un objeto
-``FiltrosParcelas`` como argumentos sueltos ``(municipio, q)``.
+El backend no usa base de datos: toda la información se lee de los archivos
+ubicados en ``data/`` (copiados del frontend ``agrocebada-dashboard``).
 """
 
 from __future__ import annotations
 
+import csv
 import json
 from pathlib import Path
 from typing import Any
-
-from app.models.parcela import FiltrosParcelas
 
 DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data"
 
@@ -26,26 +23,22 @@ def _cargar_json(nombre_archivo: str) -> Any:
 
 def cargar_meta() -> dict[str, Any]:
     """Devuelve los metadatos globales del modelo (meta.json)."""
-    res: dict[str, Any] = _cargar_json("meta.json")
-    return res
+    return _cargar_json("meta.json")
 
 
 def cargar_parcelas() -> list[dict[str, Any]]:
     """Devuelve la lista completa de parcelas con predicción (parcelas.json)."""
-    res: list[dict[str, Any]] = _cargar_json("parcelas.json")
-    return res
+    return _cargar_json("parcelas.json")
 
 
 def cargar_municipios() -> list[dict[str, Any]]:
     """Devuelve el ranking de municipios (municipios.json)."""
-    res: list[dict[str, Any]] = _cargar_json("municipios.json")
-    return res
+    return _cargar_json("municipios.json")
 
 
 def cargar_modelos() -> list[dict[str, Any]]:
     """Devuelve la comparación de modelos por validación cruzada (modelos.json)."""
-    res: list[dict[str, Any]] = _cargar_json("modelos.json")
-    return res
+    return _cargar_json("modelos.json")
 
 
 def cargar_anexo_csv() -> str:
@@ -65,22 +58,15 @@ def buscar_parcela_por_id(parcela_id: str) -> dict[str, Any] | None:
 
 def filtrar_parcelas(
     parcelas: list[dict[str, Any]],
-    municipio: str | FiltrosParcelas | None = None,
+    municipio: str | None = None,
     q: str | None = None,
 ) -> list[dict[str, Any]]:
-    """Filtra la lista de parcelas aceptando FiltrosParcelas o (municipio, q)."""
-    if isinstance(municipio, FiltrosParcelas):
-        filtro_muni = municipio.municipio
-        filtro_q = municipio.q
-    else:
-        filtro_muni = municipio
-        filtro_q = q
-
-    resultado = list(parcelas)
-    if filtro_muni:
-        resultado = [p for p in resultado if p.get("municipio") == filtro_muni]
-    if filtro_q:
-        q_lower = filtro_q.lower()
+    """Filtra la lista de parcelas por municipio exacto y/o búsqueda por ID/municipio."""
+    resultado = parcelas
+    if municipio:
+        resultado = [p for p in resultado if p.get("municipio") == municipio]
+    if q:
+        q_lower = q.lower()
         resultado = [
             p
             for p in resultado
