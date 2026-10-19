@@ -3,83 +3,66 @@
 GET /api/v1/parcelas
 GET /api/v1/parcelas/{id}
 
-Devuelve la lista de las 59 parcelas con su predicción de rendimiento y
+Devuelve la lista de las 59 parcelas con su predicción de rendimiento e
 intervalo de confianza al 90 %. Admite filtrado por municipio y búsqueda por
 ID o nombre de municipio.
 """
 
-from fastapi import APIRouter, Query, HTTPException, status
+from typing import Annotated
 
-from app.data.loader import buscar_parcela_por_id, cargar_parcelas, filtrar_parcelas
+from fastapi import APIRouter, Path, Query
+
+from app.api.deps import ERROR_RESPONSES, DatosDep
 from app.models.error import ErrorResponse
-from app.models.parcela import Parcela
+from app.models.parcela import FiltrosParcelas, Parcela
+from app.services.parcelas import (
+    MAX_FILTER_LEN,
+    filtrar_parcelas_modelo,
+    obtener_parcela_por_id,
+)
 
 router = APIRouter()
-
-MAX_FILTER_LEN = 100
 
 
 @router.get(
     "/parcelas",
     response_model=list[Parcela],
-    responses={400: {"model": ErrorResponse}, 422: {"model": ErrorResponse}},
+    responses=ERROR_RESPONSES,
     tags=["parcelas"],
     summary="Lista de parcelas con predicción",
 )
 def get_parcelas(
-    municipio: str | None = Query(
-        None,
-        description="Filtrar por municipio exacto",
-        max_length=MAX_FILTER_LEN,
-    ),
-    q: str | None = Query(
-        None,
-        description="Buscar por ID de parcela o nombre de municipio",
-        max_length=MAX_FILTER_LEN,
-    ),
-):
-    """Retorna la lista de parcelas con predicción (contracto: Parcela[]).
-
-    Filtros opcionales:
-    - ``municipio``: filtra por municipio exacto.
-    - ``q``: búsqueda por ID de parcela o nombre de municipio.
-
-    Lee ``data/parcelas.json`` y aplica los filtros en memoria.
-    """
-    parcelas = cargar_parcelas()
-    filtradas = filtrar_parcelas(parcelas, municipio=municipio, q=q)
-    return [Parcela(**p) for p in filtradas]
+    datos: DatosDep,
+    municipio: Annotated[
+        str | None,
+        Query(max_length=MAX_FILTER_LEN, description="Filtrar por municipio exacto"),
+    ] = None,
+    q: Annotated[
+        str | None,
+        Query(
+            max_length=MAX_FILTER_LEN,
+            description="Buscar por ID de parcela o nombre de municipio",
+        ),
+    ] = None,
+) -> list[Parcela]:
+    """Retorna la lista de parcelas con predicción desde memoria (contrato: Parcela[])."""
+    filtros = FiltrosParcelas(municipio=municipio, q=q)
+    return filtrar_parcelas_modelo(datos.parcelas, filtros)
 
 
 @router.get(
     "/parcelas/{parcela_id}",
     response_model=Parcela,
-    responses={404: {"model": ErrorResponse}},
+    responses={404: {"model": ErrorResponse}, **ERROR_RESPONSES},
     tags=["parcelas"],
     summary="Una parcela por ID",
 )
-def get_parcela(parcela_id: str):
-    """Retorna una parcela específica por su ID (contracto: Parcela).
-
-    Busca la parcela en ``data/parcelas.json``. Si no se encuentra, devuelve
-    un error 404 con formato ``{ error: { code, message } }``.
-    """
-    if len(parcela_id) > MAX_FILTER_LEN:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=ErrorResponse(
-                error={"code": "id_invalido", "message": "Identificador demasiado largo"}
-            ).model_dump(),
-        )
-    parcela = buscar_parcela_por_id(parcela_id)
-    if parcela is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=ErrorResponse(
-                error={
-                    "code": "no_encontrada",
-                    "message": "No existe una parcela con el identificador solicitado.",
-                }
-            ).model_dump(),
-        )
-    return Parcela(**parcela)
+def get_parcela(
+    datos: DatosDep,
+    parcela_id: Annotated[
+        str,
+        Path(min_length=1, description="Identificador de la parcela"),
+    ],
+) -> Parcela:
+    """Retorna una parcela específica por su ID desde el índice O(1) en memoria."""
+    return obtener_parcela_por_id(datos, parcela_id)
