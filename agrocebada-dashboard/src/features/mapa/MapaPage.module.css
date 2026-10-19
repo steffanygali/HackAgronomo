@@ -1,0 +1,116 @@
+.intro {
+  color: var(--color-texto-suave);
+  max-width: 68ch;
+}
+
+.rejilla {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: var(--esp-5);
+  align-items: start;
+}
+
+@media (max-width: 860px) {
+  .rejilla {
+    grid-template-columns: 1fr;
+  }
+}
+
+.svg {
+  width: 100%;
+  height: auto;
+  background: var(--color-superficie);
+  border: 1px solid var(--color-linea);
+  border-radius: var(--radio);
+  display: block;
+}
+
+.punto {
+  cursor: pointer;
+  transition: r 0.12s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .punto {
+    transition: none;
+  }
+}
+
+.rotulo {
+  font-size: 11px;
+  font-family: var(--fuente-sans);
+  fill: var(--color-texto-suave);
+  paint-order: stroke;
+  stroke: var(--color-superficie);
+  stroke-width: 3px;
+}
+
+.leyendaTitulo {
+  font-family: var(--fuente-sans);
+  font-size: var(--texto-chico);
+  font-weight: 600;
+  margin: var(--esp-3) 0 var(--esp-2);
+}
+
+.leyenda {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--esp-2) var(--esp-4);
+  margin: 0;
+  padding: 0;
+  font-size: var(--texto-chico);
+  color: var(--color-texto-suave);
+  font-variant-numeric: tabular-nums;
+}
+
+.leyenda li {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-2);
+}
+
+.muestra {
+  width: 1.1rem;
+  height: 1.1rem;
+  border: 1px solid var(--color-linea-fuerte);
+  border-radius: 1px;
+  flex: none;
+}
+
+.panelLateral {
+  background: var(--color-superficie);
+  border: 1px solid var(--color-linea);
+  border-radius: var(--radio);
+  padding: var(--esp-4);
+}
+
+.ficha {
+  background: var(--color-superficie);
+  border: 1px solid var(--color-linea);
+  border-radius: var(--radio);
+  padding: var(--esp-4) var(--esp-5);
+  max-width: 46rem;
+}
+
+.fichaClave {
+  font-size: 1.1rem;
+  margin-bottom: var(--esp-3);
+}
+
+.datos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: var(--esp-3) var(--esp-5);
+  margin: 0 0 var(--esp-4);
+}
+
+.datos dt {
+  font-size: var(--texto-chico);
+  color: var(--color-texto-suave);
+}
+
+.datos dd {
+  margin: 0;
+  font-weight: 600;
+}

@@ -1,0 +1,60 @@
+/* Tokens del dashboard — dirección visual: editorial agrícola, sobria.
+   Cada token existe por una razón concreta; no hay sombras genéricas ni
+   degradados. La jerarquía se construye con tipografía, divisores y espacio. */
+
+:root {
+  /* Color — fondo crema cálido y texto carbón (contraste alto, AA+) */
+  --color-fondo: #f6f2e7;
+  --color-superficie: #fdfbf4;
+  --color-texto: #24221c;
+  --color-texto-suave: #57523f;
+  --color-linea: #e0d8c3;
+  --color-linea-fuerte: #c9bfa4;
+
+  /* Acento verde cebada: navegación, enlaces, predicción */
+  --color-verde: #4a6b2c;
+  --color-verde-oscuro: #35501d;
+  --color-verde-suave: #e8eedd;
+
+  /* Ocre trigo: el rango del intervalo del 90 % */
+  --color-ocre: #b8862f;
+  --color-ocre-texto: #7d5a16;
+  --color-ocre-suave: #f3e7cd;
+
+  /* Semáforo de confianza (siempre acompañado de texto) */
+  --color-alta: #35501d;
+  --color-alta-fondo: #e4ecd8;
+  --color-media: #7d5a16;
+  --color-media-fondo: #f4e8cc;
+  --color-baja: #8c3325;
+  --color-baja-fondo: #f4ded7;
+
+  /* Tipografía — serif de carácter para titulares, sans legible para datos */
+  --fuente-serif: Georgia, 'Iowan Old Style', 'Palatino Linotype', 'Times New Roman',
+    serif;
+  --fuente-sans: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+    sans-serif;
+
+  --texto-titulo: clamp(1.45rem, 1.1rem + 1.6vw, 2.1rem);
+  --texto-seccion: clamp(1.12rem, 1rem + 0.6vw, 1.4rem);
+  --texto-cifra: clamp(1.5rem, 1.1rem + 1.4vw, 2rem);
+  --texto-base: 1rem; /* 16 px; en móvil baja a 14 px vía global.css */
+  --texto-chico: 0.875rem;
+  --texto-micro: 0.8rem;
+
+  /* Espaciado (escala de 4 px) */
+  --esp-1: 0.25rem;
+  --esp-2: 0.5rem;
+  --esp-3: 0.75rem;
+  --esp-4: 1rem;
+  --esp-5: 1.5rem;
+  --esp-6: 2rem;
+  --esp-7: 3rem;
+
+  /* Radios pequeños: papel, no píldoras */
+  --radio: 3px;
+
+  /* Layout */
+  --ancho-max: 76rem;
+  --franja-alta: auto;
+}

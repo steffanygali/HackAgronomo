@@ -1,0 +1,223 @@
+openapi: 3.1.0
+info:
+  title: API del modelo de rendimiento de cebada — Reto AgroCebada FIRA 2026
+  version: 1.0.0
+  description: |
+    Contrato que debe implementar el backend. El frontend (src/api/httpSource.ts)
+    consume exactamente estos endpoints cuando VITE_DATA_MODE=api.
+    Los campos de `desglose` pueden ser null: la interfaz muestra «Sin dato».
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Servidor de desarrollo (usa `npm run mock-api` para un mock local)
+paths:
+  /meta:
+    get:
+      summary: Metadatos y métricas globales del modelo
+      operationId: getMeta
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Meta'
+        default:
+          $ref: '#/components/responses/Error'
+  /parcelas:
+    get:
+      summary: Lista de parcelas con predicción (59 en total)
+      operationId: getParcelas
+      parameters:
+        - name: municipio
+          in: query
+          required: false
+          schema: { type: string }
+          description: Filtra por municipio exacto.
+        - name: q
+          in: query
+          required: false
+          schema: { type: string }
+          description: Búsqueda por ID de parcela o municipio.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Parcela'
+        default:
+          $ref: '#/components/responses/Error'
+  /parcelas/{id}:
+    get:
+      summary: Una parcela por ID
+      operationId: getParcela
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+          example: AGC_003
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Parcela'
+        '404':
+          description: La parcela no existe
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        default:
+          $ref: '#/components/responses/Error'
+  /municipios:
+    get:
+      summary: Ranking de municipios (rendimiento esperado e incertidumbre)
+      operationId: getMunicipios
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Municipio'
+        default:
+          $ref: '#/components/responses/Error'
+  /modelos:
+    get:
+      summary: Comparación de modelos por validación cruzada
+      operationId: getModelos
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Modelo'
+        default:
+          $ref: '#/components/responses/Error'
+  /export/anexo.csv:
+    get:
+      summary: Anexo descargable con las 59 predicciones
+      operationId: getAnexoCsv
+      responses:
+        '200':
+          description: CSV con cabecera ID_parcela,rendimiento_predicho_ton_ha
+          content:
+            text/csv:
+              schema: { type: string }
+              example: |
+                ID_parcela,rendimiento_predicho_ton_ha
+                AGC_003,3.273
+        default:
+          $ref: '#/components/responses/Error'
+components:
+  responses:
+    Error:
+      description: Error del servidor
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { type: string, example: no_encontrada }
+            message: { type: string }
+    Confianza:
+      type: string
+      enum: [alta, media, baja]
+      description: |
+        Regla (la calcula el backend o el script semilla):
+        baja si n_entrenamiento_municipio < 2;
+        media si está entre 2 y 8 (grupo «Otros», predicción por vecinos);
+        alta si >= 9.
+    Metodo:
+      type: string
+      enum: [hibrido, knn_otros]
+    Desglose:
+      type: object
+      nullable: true
+      properties:
+        mediana_municipal: { type: number, example: 4.49 }
+        ajuste_ridge: { type: number, example: 0.023 }
+    Parcela:
+      type: object
+      required:
+        [id, municipio, lat, lon, prediccion_ton_ha, limite_inferior_90,
+         limite_superior_90, n_entrenamiento_municipio, confianza, metodo, desglose]
+      properties:
+        id: { type: string, example: AGC_003 }
+        municipio: { type: string, example: Singuilucan }
+        lat: { type: number, example: 19.96 }
+        lon: { type: number, example: -98.53 }
+        prediccion_ton_ha: { type: number, example: 3.273 }
+        limite_inferior_90: { type: number, example: 2.608 }
+        limite_superior_90: { type: number, example: 3.939 }
+        n_entrenamiento_municipio: { type: integer, example: 42 }
+        confianza: { $ref: '#/components/schemas/Confianza' }
+        metodo: { $ref: '#/components/schemas/Metodo' }
+        desglose:
+          allOf: [{ $ref: '#/components/schemas/Desglose' }]
+          description: null cuando no aplica (p. ej. método knn_otros).
+    Municipio:
+      type: object
+      required:
+        [municipio, n_prediccion, n_entrenamiento, rendimiento_medio_predicho, semiancho_90, confianza]
+      properties:
+        municipio: { type: string }
+        n_prediccion: { type: integer }
+        n_entrenamiento: { type: integer }
+        rendimiento_medio_predicho: { type: number }
+        semiancho_90: { type: number }
+        confianza: { $ref: '#/components/schemas/Confianza' }
+    Modelo:
+      type: object
+      required: [modelo, rmse, rmse_sd, mae, r2, elegido]
+      properties:
+        modelo: { type: string, example: Híbrido (candidato) }
+        rmse: { type: number, example: 0.4856 }
+        rmse_sd: { type: number, example: 0.0025 }
+        mae: { type: number, example: 0.3159 }
+        r2: { type: number, example: 0.6722 }
+        elegido: { type: boolean }
+    Meta:
+      type: object
+      required:
+        [n_parcelas_total, n_entrenamiento, n_prediccion, metricas,
+         semiancho_global_90, modelo, generado_en]
+      properties:
+        n_parcelas_total: { type: integer, example: 197 }
+        n_entrenamiento: { type: integer, example: 138 }
+        n_prediccion: { type: integer, example: 59 }
+        metricas:
+          type: object
+          required: [rmse, mae, r2]
+          properties:
+            rmse: { type: number, example: 0.4856 }
+            mae: { type: number, example: 0.3159 }
+            r2: { type: number, example: 0.6722 }
+        semiancho_global_90: { type: number, example: 0.716 }
+        modelo: { type: string, example: 'Híbrido (candidato)' }
+        generado_en: { type: string, format: date-time }
+        nota_permutaciones:
+          type: object
+          description: Extensión opcional del mock (no requerida al backend).
+          properties:
+            max_correlacion: { type: number, example: 0.238 }
+            umbral: { type: number, example: 0.281 }
+            fuente: { type: string }

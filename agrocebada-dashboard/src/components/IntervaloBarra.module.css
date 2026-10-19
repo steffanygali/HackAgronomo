@@ -1,0 +1,44 @@
+.figura {
+  margin: 0;
+}
+
+.svg {
+  width: 100%;
+  max-width: 32rem;
+  height: auto;
+  display: block;
+}
+
+.eje {
+  stroke: var(--color-linea-fuerte);
+  stroke-width: 1;
+}
+
+.rango {
+  fill: var(--color-ocre-suave);
+  stroke: var(--color-ocre);
+  stroke-width: 1;
+}
+
+.pred {
+  stroke: var(--color-verde-oscuro);
+  stroke-width: 2;
+}
+
+.punta {
+  fill: var(--color-verde-oscuro);
+}
+
+.pies {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--esp-2) var(--esp-4);
+  justify-content: space-between;
+  font-size: var(--texto-chico);
+  color: var(--color-texto-suave);
+  margin-top: var(--esp-1);
+}
+
+.pies strong {
+  color: var(--color-verde-oscuro);
+}

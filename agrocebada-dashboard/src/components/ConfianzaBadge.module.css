@@ -1,0 +1,36 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--esp-2);
+  font-size: var(--texto-chico);
+  font-weight: 600;
+  border: 1px solid;
+  border-radius: var(--radio);
+  padding: 0.15rem var(--esp-2);
+}
+
+.marca {
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 1px;
+  background: currentColor;
+  flex: none;
+}
+
+.alta {
+  color: var(--color-alta);
+  background: var(--color-alta-fondo);
+  border-color: var(--color-alta);
+}
+
+.media {
+  color: var(--color-media);
+  background: var(--color-media-fondo);
+  border-color: var(--color-media);
+}
+
+.baja {
+  color: var(--color-baja);
+  background: var(--color-baja-fondo);
+  border-color: var(--color-baja);
+}

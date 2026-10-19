@@ -1,0 +1,9 @@
+.aviso {
+  font-size: var(--texto-chico);
+  color: var(--color-baja);
+  margin: 0;
+  display: flex;
+  gap: var(--esp-2);
+  align-items: center;
+  flex-wrap: wrap;
+}

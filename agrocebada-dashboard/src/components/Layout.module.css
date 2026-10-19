@@ -1,0 +1,150 @@
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Franja fija arriba: título, métricas y la línea de error esperado. */
+.franja {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--color-superficie);
+  border-bottom: 1px solid var(--color-linea-fuerte);
+  padding-top: var(--esp-3);
+}
+
+.franjaInterior {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--esp-4) var(--esp-6);
+  align-items: flex-end;
+  justify-content: space-between;
+  padding-bottom: var(--esp-3);
+}
+
+.sobre {
+  font-size: var(--texto-micro);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-verde-oscuro);
+  margin: 0 0 var(--esp-1);
+  font-weight: 600;
+}
+
+.titular h1 {
+  margin: 0;
+}
+
+.metricas {
+  display: flex;
+  gap: var(--esp-5);
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+
+.metrica {
+  min-width: 5.5rem;
+}
+
+.metricaValor {
+  font-size: var(--texto-cifra);
+  font-family: var(--fuente-serif);
+  color: var(--color-verde-oscuro);
+  display: block;
+}
+
+.metaError {
+  color: var(--color-baja);
+  font-size: var(--texto-chico);
+  display: flex;
+  gap: var(--esp-2);
+  align-items: center;
+  margin: 0;
+  flex-wrap: wrap;
+}
+
+.notaFija {
+  margin: 0;
+  background: var(--color-verde-suave);
+  border-top: 1px solid var(--color-linea);
+  color: var(--color-verde-oscuro);
+  font-size: var(--texto-chico);
+  padding: var(--esp-2) 0;
+  text-align: center;
+}
+
+.nav {
+  background: var(--color-fondo);
+  border-bottom: 1px solid var(--color-linea);
+}
+
+.navInterior {
+  display: flex;
+  gap: var(--esp-1);
+  overflow-x: auto;
+}
+
+.navEnlace {
+  flex: none;
+  padding: var(--esp-3) var(--esp-3);
+  color: var(--color-texto-suave);
+  text-decoration: none;
+  font-size: var(--texto-chico);
+  font-weight: 600;
+  border-bottom: 3px solid transparent;
+  white-space: nowrap;
+}
+
+.navEnlace:hover {
+  color: var(--color-verde-oscuro);
+}
+
+/* Activo se distingue por peso + borde inferior, no solo por color */
+.navActivo {
+  color: var(--color-verde-oscuro);
+  border-bottom-color: var(--color-verde);
+}
+
+.main {
+  flex: 1;
+  padding-top: var(--esp-5);
+  padding-bottom: var(--esp-6);
+}
+
+.pie {
+  border-top: 1px solid var(--color-linea-fuerte);
+  background: var(--color-superficie);
+  padding: var(--esp-5) 0 var(--esp-6);
+}
+
+.pie h2 {
+  font-size: var(--texto-seccion);
+}
+
+.limitaciones {
+  margin: 0 0 var(--esp-4);
+  padding-left: 1.2rem;
+  max-width: 60ch;
+}
+
+.limitaciones li {
+  margin-bottom: var(--esp-2);
+  font-size: var(--texto-chico);
+  color: var(--color-texto-suave);
+}
+
+.pieInferior {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--esp-4);
+  align-items: center;
+  justify-content: space-between;
+}
+
+.pieMeta {
+  font-size: var(--texto-micro);
+  color: var(--color-texto-suave);
+  margin: 0;
+  max-width: 60ch;
+}

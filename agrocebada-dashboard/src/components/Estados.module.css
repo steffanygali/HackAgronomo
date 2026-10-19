@@ -1,0 +1,54 @@
+.carga {
+  display: grid;
+  gap: var(--esp-3);
+  padding: var(--esp-4) 0;
+}
+
+.linea {
+  height: 1.1rem;
+  background: var(--color-linea);
+  border-radius: var(--radio);
+  animation: pulsar 1.4s ease-in-out infinite;
+}
+
+@keyframes pulsar {
+  50% {
+    opacity: 0.45;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .linea {
+    animation: none;
+  }
+}
+
+.error {
+  border-left: 3px solid var(--color-baja);
+  background: var(--color-baja-fondo);
+  padding: var(--esp-4);
+  border-radius: var(--radio);
+  margin: var(--esp-4) 0;
+}
+
+.error h3 {
+  margin-bottom: var(--esp-2);
+}
+
+.vacio {
+  color: var(--color-texto-suave);
+  font-style: italic;
+  padding: var(--esp-4) 0;
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}

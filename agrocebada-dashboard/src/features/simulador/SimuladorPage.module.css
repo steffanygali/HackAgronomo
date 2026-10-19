@@ -1,0 +1,91 @@
+.avisoPermanente {
+  border-left: 3px solid var(--color-ocre);
+  background: var(--color-ocre-suave);
+  color: var(--color-ocre-texto);
+  padding: var(--esp-3) var(--esp-4);
+  border-radius: var(--radio);
+  font-size: var(--texto-chico);
+  max-width: 64ch;
+}
+
+.rejilla {
+  display: grid;
+  grid-template-columns: minmax(16rem, 22rem) 1fr;
+  gap: var(--esp-6);
+  align-items: start;
+  margin-top: var(--esp-5);
+}
+
+@media (max-width: 860px) {
+  .rejilla {
+    grid-template-columns: 1fr;
+    gap: var(--esp-5);
+  }
+}
+
+.formulario {
+  background: var(--color-superficie);
+  border: 1px solid var(--color-linea);
+  border-radius: var(--radio);
+  padding: var(--esp-4);
+  display: grid;
+  gap: var(--esp-3);
+}
+
+.ejemploMarca {
+  margin: 0;
+  font-size: var(--texto-micro);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-baja);
+  font-weight: 700;
+}
+
+.selector {
+  margin-bottom: var(--esp-2);
+}
+
+.campo {
+  margin: 0;
+}
+
+.errorCampo {
+  display: block;
+  color: var(--color-baja);
+  font-size: var(--texto-chico);
+  margin-top: var(--esp-1);
+}
+
+.resumenErrores {
+  color: var(--color-baja);
+  font-size: var(--texto-chico);
+  margin: 0;
+}
+
+.resultados h3 {
+  margin-bottom: var(--esp-3);
+}
+
+.tablaCaption {
+  text-align: left;
+  font-size: var(--texto-chico);
+  color: var(--color-texto-suave);
+  padding-bottom: var(--esp-2);
+}
+
+.si {
+  color: var(--color-alta);
+  font-weight: 700;
+}
+
+.no {
+  color: var(--color-baja);
+  font-weight: 700;
+}
+
+.formulas {
+  font-size: var(--texto-micro);
+  color: var(--color-texto-suave);
+  margin-top: var(--esp-3);
+  max-width: 70ch;
+}
