@@ -2,23 +2,29 @@
 
 El backend no usa base de datos: toda la información se lee de los archivos
 ubicados en ``data/`` (copiados del frontend ``agrocebada-dashboard``).
+
+Los archivos se cachean en memoria tras la primera lectura para evitar
+lecturas repetidas de disco en cada petición.
 """
 
 from __future__ import annotations
 
-import csv
 import json
 from pathlib import Path
 from typing import Any
 
 DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data"
 
+_cache: dict[str, Any] = {}
+
 
 def _cargar_json(nombre_archivo: str) -> Any:
     """Carga y devuelve el contenido de un archivo JSON de data/."""
-    ruta = DATA_DIR / nombre_archivo
-    with ruta.open("r", encoding="utf-8") as f:
-        return json.load(f)
+    if nombre_archivo not in _cache:
+        ruta = DATA_DIR / nombre_archivo
+        with ruta.open("r", encoding="utf-8") as f:
+            _cache[nombre_archivo] = json.load(f)
+    return _cache[nombre_archivo]
 
 
 def cargar_meta() -> dict[str, Any]:
@@ -43,9 +49,11 @@ def cargar_modelos() -> list[dict[str, Any]]:
 
 def cargar_anexo_csv() -> str:
     """Devuelve el contenido CSV del anexo de predicciones (anexo.csv)."""
-    ruta = DATA_DIR / "anexo.csv"
-    with ruta.open("r", encoding="utf-8") as f:
-        return f.read()
+    if "anexo.csv" not in _cache:
+        ruta = DATA_DIR / "anexo.csv"
+        with ruta.open("r", encoding="utf-8") as f:
+            _cache["anexo.csv"] = f.read()
+    return _cache["anexo.csv"]
 
 
 def buscar_parcela_por_id(parcela_id: str) -> dict[str, Any] | None:

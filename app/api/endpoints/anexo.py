@@ -27,10 +27,4 @@ def get_anexo_csv():
     Lee el archivo estático ``data/anexo.csv`` y devuelve su contenido como
     texto plano con MIME ``text/csv``.
     """
-    try:
-        return cargar_anexo_csv()
-    except Exception:  # noqa: BLE001
-        return PlainTextResponse(
-            status_code=500,
-            content="Error interno del servidor",
-        )
+    return cargar_anexo_csv()

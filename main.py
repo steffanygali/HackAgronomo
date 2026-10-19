@@ -16,6 +16,7 @@ from app.api.endpoints import (
     parcelas_router,
 )
 from app.core.config import settings
+from app.core.exceptions import error_404_handler, error_500_handler
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -38,6 +39,9 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers[
+            "Content-Security-Policy"
+        ] = "default-src 'self'; script-src 'self'; object-src 'none';"
         return response
 
 
@@ -51,6 +55,10 @@ app.add_middleware(
     allow_methods=["GET"],
     allow_headers=["Content-Type", "Accept"],
 )
+
+# Manejadores centralizados de excepciones (no exponen detalles internos)
+app.add_exception_handler(500, error_500_handler)
+app.add_exception_handler(404, error_404_handler)
 
 # Routers de la API bajo /api/v1
 app.include_router(meta_router, prefix=settings.API_V1_STR)
