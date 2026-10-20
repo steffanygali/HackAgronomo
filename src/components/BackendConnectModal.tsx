@@ -90,7 +90,7 @@ export const BackendConnectModal: React.FC<BackendConnectModalProps> = ({
       if (healthy) {
         setConnectMessage({
           type: 'success',
-          text: 'Conectado exitosamente con la API del backend (/health y /api/v1/* activos).',
+          text: 'API conectada; /api/parcels responde con geometrías válidas.',
         });
       } else {
         setConnectAttempted(true);

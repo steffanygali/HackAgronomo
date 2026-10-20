@@ -26,12 +26,16 @@ import {
 
 const STORAGE_KEY_API_URL = 'agrocebada_backend_url';
 
+function normalizeBackendUrl(url: string): string {
+  return url.trim().replace(/\/+$/, '');
+}
+
 export function getBackendUrl(): string {
   const stored = localStorage.getItem(STORAGE_KEY_API_URL);
   if (stored !== null) {
-    return stored;
+    return normalizeBackendUrl(stored);
   }
-  return (
+  return normalizeBackendUrl(
     import.meta.env.VITE_API_URL ||
     import.meta.env.VITE_BACKEND_URL ||
     'http://localhost:8000'
@@ -39,7 +43,45 @@ export function getBackendUrl(): string {
 }
 
 export function setBackendUrl(url: string): void {
-  localStorage.setItem(STORAGE_KEY_API_URL, url.trim().replace(/\/+$/, ''));
+  localStorage.setItem(STORAGE_KEY_API_URL, normalizeBackendUrl(url));
+}
+
+function isCoordinatePair(value: unknown): value is [number, number] {
+  return (
+    Array.isArray(value) &&
+    value.length >= 2 &&
+    typeof value[0] === 'number' &&
+    Number.isFinite(value[0]) &&
+    Math.abs(value[0]) <= 180 &&
+    typeof value[1] === 'number' &&
+    Number.isFinite(value[1]) &&
+    Math.abs(value[1]) <= 90
+  );
+}
+
+function hasGeographicPolygons(value: unknown): value is BarleyParcel[] {
+  if (!Array.isArray(value) || value.length === 0) return false;
+
+  return value.every((parcel: unknown) => {
+    if (!parcel || typeof parcel !== 'object') return false;
+    const candidate = parcel as Record<string, unknown>;
+    return (
+      isCoordinatePair(candidate.center) &&
+      Array.isArray(candidate.polygon) &&
+      candidate.polygon.length >= 4 &&
+      candidate.polygon.every(isCoordinatePair) &&
+      Array.isArray(candidate.subDivisions) &&
+      candidate.subDivisions.every((subdivision: unknown) => {
+        if (!subdivision || typeof subdivision !== 'object') return false;
+        const sub = subdivision as Record<string, unknown>;
+        return (
+          Array.isArray(sub.polygon) &&
+          sub.polygon.length >= 4 &&
+          sub.polygon.every(isCoordinatePair)
+        );
+      })
+    );
+  });
 }
 
 export async function fetchBarleyParcels(): Promise<{
@@ -64,12 +106,12 @@ export async function fetchBarleyParcels(): Promise<{
 
       if (parcelsRes.status === 'fulfilled' && parcelsRes.value.ok) {
         const data = await parcelsRes.value.json();
-        const rawList: BarleyParcel[] = Array.isArray(data)
+        const rawList: unknown = Array.isArray(data)
           ? data
           : Array.isArray(data?.parcels)
           ? data.parcels
           : [];
-        if (rawList.length > 0) {
+        if (hasGeographicPolygons(rawList)) {
           return {
             parcels: mergeV1EvaluacionesIntoParcels(rawList, v1EvalRows),
             source: 'backend',
@@ -80,7 +122,9 @@ export async function fetchBarleyParcels(): Promise<{
       if (v1EvalRows.length > 0) {
         return {
           parcels: mergeV1EvaluacionesIntoParcels(generate197BarleyParcels(), v1EvalRows),
-          source: 'backend',
+          // /api/v1/parcelas no incluye polígonos. No mostrar estado "API" si
+          // la capa geográfica tuvo que salir del dataset de ejemplo local.
+          source: 'local-dataset',
         };
       }
     } catch (err) {
@@ -290,17 +334,35 @@ export function exportPredictionsCsv(parcels: BarleyParcel[], onlyEval30Pct = tr
 // --- Integración completa con el contrato /api/v1 del Backend FastAPI ---
 
 export async function checkBackendHealth(customUrl?: string): Promise<boolean> {
-  const baseUrl = (customUrl ?? getBackendUrl()).trim().replace(/\/+$/, '');
+  const baseUrl = normalizeBackendUrl(customUrl ?? getBackendUrl());
   if (!baseUrl) return false;
   try {
-    const res = await fetch(`${baseUrl}/health`, {
+    let available = false;
+    const healthRes = await fetch(`${baseUrl}/health`, {
       headers: { Accept: 'application/json' },
     });
-    if (res.ok) return true;
-    const pingRes = await fetch(`${baseUrl}/api/v1/ping`, {
+    available = healthRes.ok;
+    if (!available) {
+      const pingRes = await fetch(`${baseUrl}/api/v1/ping`, {
+        headers: { Accept: 'application/json' },
+      });
+      available = pingRes.ok;
+    }
+    if (!available) return false;
+
+    // La conexión que requiere el mapa es /api/parcels; el healthcheck por sí
+    // solo no garantiza que la API esté sirviendo las geometrías del GeoJSON.
+    const parcelsRes = await fetch(`${baseUrl}/api/parcels`, {
       headers: { Accept: 'application/json' },
     });
-    return pingRes.ok;
+    if (!parcelsRes.ok) return false;
+    const data = await parcelsRes.json();
+    const parcels: unknown = Array.isArray(data)
+      ? data
+      : Array.isArray(data?.parcels)
+      ? data.parcels
+      : [];
+    return hasGeographicPolygons(parcels);
   } catch {
     return false;
   }
