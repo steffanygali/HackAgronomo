@@ -217,8 +217,10 @@ export const ParcelMap: React.FC<ParcelMapProps> = ({
             isSelectedSub: sub.id === selectedSubDivisionId ? 1 : 0,
           },
           geometry: {
-            type: 'Polygon' as const,
-            coordinates: [sub.polygon],
+            type: sub.additionalPolygons?.length ? ('MultiPolygon' as const) : ('Polygon' as const),
+            coordinates: sub.additionalPolygons?.length
+              ? [sub.polygon, ...sub.additionalPolygons].map((polygon) => [polygon])
+              : [sub.polygon],
           },
         };
       }),
@@ -232,8 +234,8 @@ export const ParcelMap: React.FC<ParcelMapProps> = ({
       features: selectedParcel.subDivisions.map((sub) => {
         const lngs = sub.polygon.map((c) => c[0]);
         const lats = sub.polygon.map((c) => c[1]);
-        const centerLng = (Math.min(...lngs) + Math.max(...lngs)) / 2;
-        const centerLat = (Math.min(...lats) + Math.max(...lats)) / 2;
+        const centerLng = sub.labelCenter?.[0] ?? (Math.min(...lngs) + Math.max(...lngs)) / 2;
+        const centerLat = sub.labelCenter?.[1] ?? (Math.min(...lats) + Math.max(...lats)) / 2;
         const currentNdvi = sub.ndviByEval[evalIndex] ?? sub.ndviByEval[3] ?? sub.ndviByEval[0];
         return {
           type: 'Feature' as const,

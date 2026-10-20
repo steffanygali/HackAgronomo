@@ -77,7 +77,14 @@ function hasGeographicPolygons(value: unknown): value is BarleyParcel[] {
         return (
           Array.isArray(sub.polygon) &&
           sub.polygon.length >= 4 &&
-          sub.polygon.every(isCoordinatePair)
+          sub.polygon.every(isCoordinatePair) &&
+          (sub.additionalPolygons === undefined ||
+            (Array.isArray(sub.additionalPolygons) &&
+              sub.additionalPolygons.every(
+                (ring: unknown) =>
+                  Array.isArray(ring) && ring.length >= 4 && ring.every(isCoordinatePair)
+              ))) &&
+          (sub.labelCenter === undefined || isCoordinatePair(sub.labelCenter))
         );
       })
     );

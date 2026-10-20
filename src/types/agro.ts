@@ -40,6 +40,8 @@ export interface SubParcelDivision {
   moistureStatus: 'Óptimo' | 'Vigilancia' | 'Estrés Hídrico';
   agronomicAction: string;
   polygon: [number, number][]; // Polígono GeoJSON [lng, lat][] de la subdivisión
+  additionalPolygons?: [number, number][][]; // Fragmentos separados por el lindero
+  labelCenter?: [number, number]; // Punto interior para colocar la etiqueta
 }
 
 export interface ShapContribution {
