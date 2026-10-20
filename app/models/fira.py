@@ -75,6 +75,8 @@ class SubParcelDivision(FiraStrictBaseModel):
     moistureStatus: MoistureStatus
     agronomicAction: str
     polygon: list[tuple[float, float]]
+    additionalPolygons: list[list[tuple[float, float]]] = Field(default_factory=list)
+    labelCenter: tuple[float, float] | None = None
 
 
 class ShapContribution(FiraStrictBaseModel):

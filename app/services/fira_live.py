@@ -14,6 +14,8 @@ import math
 from functools import lru_cache
 from pathlib import Path
 
+from shapely.geometry import Polygon
+
 from app.core.privacy import sanitizar_registro_parcela, seudonimizar_productor
 from app.models.fira import (
     BarleyParcel,
@@ -208,6 +210,43 @@ def _lerp_point(p0: tuple[float, float], p1: tuple[float, float], t: float) -> t
     )
 
 
+def _recortar_subparcela(
+    subdivision: list[tuple[float, float]],
+    parcel: list[tuple[float, float]],
+) -> tuple[list[tuple[float, float]], list[list[tuple[float, float]]], tuple[float, float]]:
+    """Recorta una franja sintética al lindero y conserva fragmentos desconectados."""
+    clipped = Polygon(subdivision).intersection(Polygon(parcel))
+    if clipped.is_empty:
+        raise ValueError("La subdivisión sintética no intersecta el polígono de la parcela")
+
+    if clipped.geom_type == "Polygon":
+        parts = [clipped]
+    elif clipped.geom_type == "MultiPolygon":
+        parts = list(clipped.geoms)
+    elif clipped.geom_type == "GeometryCollection":
+        parts = [
+            geometry
+            for geometry in clipped.geoms
+            if geometry.geom_type == "Polygon" and not geometry.is_empty and geometry.area > 0
+        ]
+    else:
+        parts = []
+
+    if not parts:
+        raise ValueError("El recorte de la subdivisión no produjo un polígono válido")
+
+    parts.sort(key=lambda geometry: geometry.area, reverse=True)
+
+    def ring_coordinates(geometry: Polygon) -> list[tuple[float, float]]:
+        return [(lng, lat) for lng, lat in geometry.exterior.coords]
+
+    label_point = parts[0].representative_point()
+    primary = ring_coordinates(parts[0])
+    additional = [ring_coordinates(geometry) for geometry in parts[1:]]
+    label_center = (label_point.x, label_point.y)
+    return primary, additional, label_center
+
+
 @lru_cache(maxsize=1)
 def generar_parcelas_fira() -> tuple[BarleyParcel, ...]:
     """Construye las 197 parcelas reales del reto FIRA (138 train, 59 eval).
@@ -301,6 +340,10 @@ def generar_parcelas_fira() -> tuple[BarleyParcel, ...]:
         poly_b: list[tuple[float, float]] = [l1, r1_pt, r2_pt, l2, l1]
         poly_a: list[tuple[float, float]] = [l2, r2_pt, r3_pt, l3, l2]
 
+        poly_a, poly_a_additional, label_a = _recortar_subparcela(poly_a, real_polygon)
+        poly_b, poly_b_additional, label_b = _recortar_subparcela(poly_b, real_polygon)
+        poly_c, poly_c_additional, label_c = _recortar_subparcela(poly_c, real_polygon)
+
         area_a = _round_js(area_ha * 0.34, 2)
         area_b = _round_js(area_ha * 0.33, 2)
         area_c = _round_js(max(0.1, area_ha - area_a - area_b), 2)
@@ -392,6 +435,8 @@ def generar_parcelas_fira() -> tuple[BarleyParcel, ...]:
                 "deltaNdvi": 0.032,
                 "soil": "Franco-Limoso",
                 "polygon": poly_a,
+                "additionalPolygons": poly_a_additional,
+                "labelCenter": label_a,
                 "areaHa": area_a,
             },
             {
@@ -401,6 +446,8 @@ def generar_parcelas_fira() -> tuple[BarleyParcel, ...]:
                 "deltaNdvi": 0.008,
                 "soil": "Franco-Arcilloso",
                 "polygon": poly_b,
+                "additionalPolygons": poly_b_additional,
+                "labelCenter": label_b,
                 "areaHa": area_b,
             },
             {
@@ -410,6 +457,8 @@ def generar_parcelas_fira() -> tuple[BarleyParcel, ...]:
                 "deltaNdvi": -0.04,
                 "soil": "Franco-Arenoso",
                 "polygon": poly_c,
+                "additionalPolygons": poly_c_additional,
+                "labelCenter": label_c,
                 "areaHa": area_c,
             },
         )
@@ -454,6 +503,8 @@ def generar_parcelas_fira() -> tuple[BarleyParcel, ...]:
             soil_type: SoilType = cfg["soil"]  # type: ignore[assignment]
             area_sub: float = cfg["areaHa"]  # type: ignore[assignment]
             poly_sub: list[tuple[float, float]] = cfg["polygon"]  # type: ignore[assignment]
+            additional_polygons: list[list[tuple[float, float]]] = cfg["additionalPolygons"]  # type: ignore[assignment]
+            label_center: tuple[float, float] = cfg["labelCenter"]  # type: ignore[assignment]
 
             sub_divisions.append(
                 SubParcelDivision(
@@ -469,6 +520,8 @@ def generar_parcelas_fira() -> tuple[BarleyParcel, ...]:
                     moistureStatus=moisture_status,
                     agronomicAction=agronomic_action,
                     polygon=poly_sub,
+                    additionalPolygons=additional_polygons,
+                    labelCenter=label_center,
                 )
             )
 
