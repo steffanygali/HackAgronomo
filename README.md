@@ -39,11 +39,11 @@ npm run build
 
 ---
 
-## Cómo Conectar tu Propio Backend (FastAPI / Flask / Node)
+## Configuración de la API
 
-El frontend cuenta con el servicio adaptador en [`src/services/api.ts`](./src/services/api.ts) y un botón **"Conectar Backend"** en la barra superior de la interfaz (o mediante la variable de entorno `VITE_API_URL=http://localhost:8000`).
+La aplicación consulta automáticamente la API configurada en `VITE_API_URL` (o `VITE_BACKEND_URL`) desde [`src/services/api.ts`](./src/services/api.ts). En Render, define `VITE_API_URL` con la URL pública del backend en la configuración de compilación del frontend. Para desarrollo local, crea `.env` con `VITE_API_URL=http://localhost:8000` y ejecuta el backend por separado. Si la API no está disponible, la interfaz conserva el conjunto de datos local como respaldo.
 
-### Endpoints Esperados
+### Endpoints que consume la aplicación
 
 1. **`GET /api/parcels`**
    Devuelve el arreglo de parcelas (`BarleyParcel[]`) o `{ "parcels": [...] }`.

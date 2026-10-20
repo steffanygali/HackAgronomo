@@ -6,7 +6,6 @@ import {
   Download,
   Info,
   Search,
-  Server,
   Sprout,
   Wheat,
   X,
@@ -28,7 +27,6 @@ import { MapColorMode, ParcelMap } from './components/ParcelMap';
 import { EvaluationTimeline } from './components/EvaluationTimeline';
 import { FarmerView } from './components/FarmerView';
 import { AnalystView } from './components/AnalystView';
-import { BackendConnectModal } from './components/BackendConnectModal';
 import { Button, FilterChip, IconButton, SegmentedButton } from './components/ui';
 
 export function App() {
@@ -59,7 +57,6 @@ export function App() {
     annualInterestRatePct: 11.5,
   });
 
-  const [isBackendModalOpen, setIsBackendModalOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
 
   const loadData = async () => {
@@ -136,19 +133,6 @@ export function App() {
     handleSelectParcel(filteredParcels[nextIdx]);
   };
 
-  const handleUploadCustomJson = (jsonText: string) => {
-    try {
-      const parsed = JSON.parse(jsonText);
-      const list = Array.isArray(parsed) ? parsed : parsed.parcels;
-      if (Array.isArray(list) && list.length > 0) {
-        setAllParcels(list);
-        setSelectedParcelId(list[0].id);
-      }
-    } catch (err) {
-      console.error('Error al parsear JSON:', err);
-    }
-  };
-
   if (!selectedParcel) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-m3-surface text-m3-on-surface gap-4">
@@ -186,7 +170,7 @@ export function App() {
             </div>
           </div>
 
-          {/* Lado derecho: Buscador + SegmentedButton + Conexión Backend */}
+          {/* Lado derecho: Buscador + SegmentedButton */}
           <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
             {/* Buscador Desktop (md+) */}
             <div className="hidden md:flex relative items-center h-10 w-44 lg:w-60 xl:w-72 bg-m3-surface-container-highest rounded-full px-3 text-m3-on-surface shrink-0">
@@ -241,30 +225,6 @@ export function App() {
               className="shrink-0 min-w-0 sm:min-w-[280px] [&_button]:px-2 sm:[&_button]:px-4"
             />
 
-            {/* Botón de conexión backend con estado claro */}
-            <div className="relative shrink-0">
-              <IconButton
-                variant="standard"
-                icon={<Server className="w-5 h-5" />}
-                aria-label={
-                  dataSource === 'backend'
-                    ? 'Conectado a la API del backend'
-                    : 'Usando datos locales integrados'
-                }
-                title={
-                  dataSource === 'backend'
-                    ? 'Conectado a la API del backend (clic para configurar)'
-                    : 'Usando datos locales integrados (clic para conectar API)'
-                }
-                onClick={() => setIsBackendModalOpen(true)}
-                className="w-9 h-9 sm:w-10 sm:h-10"
-              />
-              <span
-                className={`absolute top-1.5 right-1.5 sm:top-2 sm:right-2 w-2 h-2 rounded-full pointer-events-none ring-2 ring-m3-surface-container ${
-                  dataSource === 'backend' ? 'bg-m3-primary' : 'bg-m3-outline'
-                }`}
-              />
-            </div>
           </div>
         </div>
 
@@ -467,14 +427,6 @@ export function App() {
         </div>
       </main>
 
-      {/* Modal de Conexión con Backend */}
-      <BackendConnectModal
-        isOpen={isBackendModalOpen}
-        onClose={() => setIsBackendModalOpen(false)}
-        dataSource={dataSource}
-        onReconnect={loadData}
-        onUploadCustomJson={handleUploadCustomJson}
-      />
     </div>
   );
 }
