@@ -70,10 +70,20 @@ def create_app(custom_settings: Settings | None = None) -> FastAPI:
     register_exception_handlers(app)
     register_security_middleware(app, active_settings, limiter)
 
+    cors_origins = list(active_settings.CORS_ORIGINS)
+    frontend_origin = (active_settings.FRONTEND_ORIGIN or "").strip().rstrip("/")
+    if frontend_origin and frontend_origin not in cors_origins:
+        cors_origins.append(frontend_origin)
+
+    allowed_hosts = list(active_settings.ALLOWED_HOSTS)
+    render_hostname = (active_settings.RENDER_EXTERNAL_HOSTNAME or "").strip()
+    if render_hostname and render_hostname not in allowed_hosts:
+        allowed_hosts.append(render_hostname)
+
     # Seguridad (H1 - OWASP A05:2021 / API8:2023): orígenes explícitos y sin credenciales.
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=active_settings.CORS_ORIGINS,
+        allow_origins=cors_origins,
         allow_credentials=False,
         allow_methods=["GET", "POST", "OPTIONS"],
         allow_headers=["Accept", "Accept-Language", "Content-Type", "X-Request-ID"],
@@ -84,7 +94,7 @@ def create_app(custom_settings: Settings | None = None) -> FastAPI:
     # Seguridad (M5): valida el header Host contra Host Header Injection.
     app.add_middleware(
         TrustedHostMiddleware,
-        allowed_hosts=active_settings.ALLOWED_HOSTS,
+        allowed_hosts=allowed_hosts,
     )
 
     # Routers del contrato /api/v1

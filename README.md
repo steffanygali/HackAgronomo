@@ -70,3 +70,31 @@ uv run python main.py
 uv run pytest -v
 ruff check main.py app/ tests/
 ```
+
+## Despliegue en Render
+
+El archivo `render.yaml` configura el backend como web service y el frontend de la rama `frontend` como sitio estático. En Render, crea un **Blueprint** desde `steffanygali/HackAgronomo`, selecciona la rama `back` y revisa que ambos servicios usen el plan gratuito. El Blueprint conecta `VITE_API_URL` con la URL pública de la API y agrega automáticamente el origen público del frontend a CORS.
+
+El servicio gratuito de API puede suspenderse tras inactividad y tardar cerca de un minuto en responder al primer acceso posterior. El frontend estático permanece disponible.
+
+## Ejecutar frontend y backend juntos
+
+Aunque se comuniquen entre sí, son dos procesos y se mantienen abiertos en dos terminales:
+
+```bash
+# Terminal 1: API
+cd back
+[ -f .env ] || cp .env.example .env
+uv sync
+uv run uvicorn main:app --reload --host 127.0.0.1 --port 8000
+```
+
+```bash
+# Terminal 2: frontend
+cd frontend
+[ -f .env.local ] || cp .env.example .env.local
+npm install
+npm run dev
+```
+
+Abre `http://localhost:5173`. La variable `VITE_API_URL` del frontend apunta a `http://localhost:8000` por defecto.

@@ -37,10 +37,14 @@ class Settings(BaseSettings):
             "http://localhost:8080",
         ]
     )
+    # Dominio público del frontend, inyectado por el Blueprint de Render al desplegar.
+    FRONTEND_ORIGIN: str | None = None
     # Seguridad (M5): validación del header Host contra Host Header Injection.
     ALLOWED_HOSTS: list[str] = Field(
         default_factory=lambda: ["localhost", "127.0.0.1", "testserver"]
     )
+    # Render establece este hostname automáticamente para cada web service.
+    RENDER_EXTERNAL_HOSTNAME: str | None = None
 
     DOCS_ENABLED: bool = True
     HSTS_ENABLED: bool = False

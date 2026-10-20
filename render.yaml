@@ -1,0 +1,40 @@
+services:
+  - type: web
+    name: agrocebada-fira-api
+    runtime: python
+    plan: free
+    branch: back
+    buildCommand: uv sync --frozen --no-dev
+    startCommand: uv run --no-sync uvicorn main:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips '*'
+    healthCheckPath: /health
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: DEBUG
+        value: "false"
+      - key: DOCS_ENABLED
+        value: "true"
+      - key: CORS_ORIGINS
+        value: '["http://localhost:5173","http://127.0.0.1:5173"]'
+      - key: FRONTEND_ORIGIN
+        fromService:
+          type: web
+          name: agrocebada-fira-web
+          envVarKey: RENDER_EXTERNAL_URL
+      - key: ALLOWED_HOSTS
+        value: '["localhost","127.0.0.1"]'
+      - key: FORWARDED_ALLOW_IPS
+        value: "*"
+
+  - type: web
+    name: agrocebada-fira-web
+    runtime: static
+    branch: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: ./dist
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          type: web
+          name: agrocebada-fira-api
+          envVarKey: RENDER_EXTERNAL_URL
