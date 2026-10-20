@@ -14,7 +14,9 @@ import math
 from functools import lru_cache
 from pathlib import Path
 
-from shapely.geometry import Polygon
+from shapely.geometry import Polygon, box
+from shapely.geometry.base import BaseGeometry
+from shapely.ops import unary_union
 
 from app.core.privacy import sanitizar_registro_parcela, seudonimizar_productor
 from app.models.fira import (
@@ -202,49 +204,86 @@ def _cargar_poligonos_geojson() -> dict[
     return result
 
 
-def _lerp_point(p0: tuple[float, float], p1: tuple[float, float], t: float) -> tuple[float, float]:
-    """Interpolación lineal entre dos puntos con redondeo a 6 decimales."""
-    return (
-        _round_js(p0[0] + (p1[0] - p0[0]) * t, 6),
-        _round_js(p0[1] + (p1[1] - p0[1]) * t, 6),
-    )
-
-
-def _recortar_subparcela(
-    subdivision: list[tuple[float, float]],
-    parcel: list[tuple[float, float]],
-) -> tuple[list[tuple[float, float]], list[list[tuple[float, float]]], tuple[float, float]]:
-    """Recorta una franja sintética al lindero y conserva fragmentos desconectados."""
-    clipped = Polygon(subdivision).intersection(Polygon(parcel))
-    if clipped.is_empty:
-        raise ValueError("La subdivisión sintética no intersecta el polígono de la parcela")
-
-    if clipped.geom_type == "Polygon":
-        parts = [clipped]
-    elif clipped.geom_type == "MultiPolygon":
-        parts = list(clipped.geoms)
-    elif clipped.geom_type == "GeometryCollection":
-        parts = [
-            geometry
-            for geometry in clipped.geoms
-            if geometry.geom_type == "Polygon" and not geometry.is_empty and geometry.area > 0
+def _componentes_poligonales(geometry: BaseGeometry) -> list[Polygon]:
+    """Extrae todas las piezas con área de una intersección de Shapely."""
+    if geometry.is_empty:
+        return []
+    if geometry.geom_type == "Polygon":
+        return [geometry]  # type: ignore[list-item]
+    if geometry.geom_type in ("MultiPolygon", "GeometryCollection"):
+        return [
+            polygon
+            for part in geometry.geoms  # type: ignore[attr-defined]
+            for polygon in _componentes_poligonales(part)
+            if polygon.area > 0
         ]
-    else:
-        parts = []
+    return []
 
-    if not parts:
-        raise ValueError("El recorte de la subdivisión no produjo un polígono válido")
 
-    parts.sort(key=lambda geometry: geometry.area, reverse=True)
+def _dividir_parcela_en_sub_lotes(
+    parcel_ring: list[tuple[float, float]],
+) -> dict[str, tuple[list[tuple[float, float]], list[list[tuple[float, float]]], tuple[float, float]]]:
+    """Divide el contorno real completo en tres franjas norte, centro y sur.
 
-    def ring_coordinates(geometry: Polygon) -> list[tuple[float, float]]:
-        return [(lng, lat) for lng, lat in geometry.exterior.coords]
+    Los cortes se ajustan por área para que los tres sub-lotes cubran el predio,
+    incluso si su forma es irregular o si una franja queda en piezas separadas.
+    """
+    parcel = Polygon(parcel_ring)
+    if parcel.is_empty or not parcel.is_valid or parcel.area <= 0:
+        raise ValueError("El contorno de parcela no es un polígono válido")
 
-    label_point = parts[0].representative_point()
-    primary = ring_coordinates(parts[0])
-    additional = [ring_coordinates(geometry) for geometry in parts[1:]]
-    label_center = (label_point.x, label_point.y)
-    return primary, additional, label_center
+    min_lng, min_lat, max_lng, max_lat = parcel.bounds
+
+    def area_south_of(latitude: float) -> float:
+        return parcel.intersection(box(min_lng, min_lat, max_lng, latitude)).area
+
+    def latitude_at_area(target_area: float) -> float:
+        low, high = min_lat, max_lat
+        for _ in range(52):
+            middle = (low + high) / 2
+            if area_south_of(middle) < target_area:
+                low = middle
+            else:
+                high = middle
+        return (low + high) / 2
+
+    south_cut = latitude_at_area(parcel.area / 3)
+    north_cut = latitude_at_area(parcel.area * 2 / 3)
+    bands = {
+        "A": box(min_lng, north_cut, max_lng, max_lat),
+        "B": box(min_lng, south_cut, max_lng, north_cut),
+        "C": box(min_lng, min_lat, max_lng, south_cut),
+    }
+
+    result: dict[
+        str,
+        tuple[list[tuple[float, float]], list[list[tuple[float, float]]], tuple[float, float]],
+    ] = {}
+    clipped_parts: list[Polygon] = []
+
+    for code, band in bands.items():
+        parts = _componentes_poligonales(parcel.intersection(band))
+        if not parts:
+            raise ValueError(f"El sub-lote {code} no intersecta el contorno de la parcela")
+        parts.sort(key=lambda polygon: polygon.area, reverse=True)
+        clipped_parts.extend(parts)
+        combined = unary_union(parts)
+        label_point = combined.representative_point()
+
+        def ring_coordinates(polygon: Polygon) -> list[tuple[float, float]]:
+            return [(lng, lat) for lng, lat in polygon.exterior.coords]
+
+        result[code] = (
+            ring_coordinates(parts[0]),
+            [ring_coordinates(polygon) for polygon in parts[1:]],
+            (label_point.x, label_point.y),
+        )
+
+    coverage_error = parcel.symmetric_difference(unary_union(clipped_parts)).area
+    if coverage_error > max(parcel.area * 1e-9, 1e-16):
+        raise ValueError("Los sub-lotes no cubren completamente el contorno de la parcela")
+
+    return result
 
 
 @lru_cache(maxsize=1)
@@ -287,62 +326,13 @@ def generar_parcelas_fira() -> tuple[BarleyParcel, ...]:
         area_ha = _round_js(max(0.35, float(rec["areaHa"])), 2)
         altitude_m = float(rec["altitudeM"])
         slope_base = float(rec["slopePct"])
-        nn_dist_m = float(rec.get("nnDistM", 250.0))
-
         seed = global_idx * 137 + 31
-        r2 = _seeded_random(seed + 1)
         r3 = _seeded_random(seed + 2)
         r4 = _seeded_random(seed + 3)
-        r5 = _seeded_random(seed + 4)
-
-        # Dimensiones visuales del polígono proporcionales a sqrt(area_ha) y acotadas
-        # a la distancia al vecino más cercano para evitar superposiciones en el mapa.
-        area_m2 = area_ha * 10000.0
-        aspect = 1.25 + (r3 - 0.5) * 0.35
-        ideal_half_w_m = 0.5 * math.sqrt(area_m2 * aspect)
-        ideal_half_h_m = 0.5 * math.sqrt(area_m2 / aspect)
-        diag_m = math.hypot(ideal_half_w_m, ideal_half_h_m)
-        max_radius_m = max(18.0, nn_dist_m * 0.42)
-        scale = min(1.0, max_radius_m / max(1.0, diag_m))
-
-        half_w_m = max(14.0, ideal_half_w_m * scale)
-        half_h_m = max(11.0, ideal_half_h_m * scale)
-
-        meters_per_deg_lat = 111320.0
-        meters_per_deg_lng = 111320.0 * math.cos(math.radians(center_lat))
-
-        half_w = half_w_m / meters_per_deg_lng
-        half_h = half_h_m / meters_per_deg_lat
-        skew = (r5 - 0.5) * min(half_w, half_h) * 0.28
-
-        min_lng = _round_js(center_lng - half_w, 6)
-        max_lng = _round_js(center_lng + half_w, 6)
-        min_lat = _round_js(center_lat - half_h, 6)
-        max_lat = _round_js(center_lat + half_h, 6)
-
-        bl = (min_lng, min_lat)
-        br = (max_lng, _round_js(min_lat + skew, 6))
-        tr = (_round_js(max_lng + skew * 0.5, 6), max_lat)
-        tl = (_round_js(min_lng + skew * 0.5, 6), _round_js(max_lat - skew, 6))
-
-        outer_polygon: list[tuple[float, float]] = [bl, br, tr, tl, bl]
-
-        l0 = bl
-        r0 = br
-        l1 = _lerp_point(bl, tl, 1.0 / 3.0)
-        r1_pt = _lerp_point(br, tr, 1.0 / 3.0)
-        l2 = _lerp_point(bl, tl, 2.0 / 3.0)
-        r2_pt = _lerp_point(br, tr, 2.0 / 3.0)
-        l3 = tl
-        r3_pt = tr
-
-        poly_c: list[tuple[float, float]] = [l0, r0, r1_pt, l1, l0]
-        poly_b: list[tuple[float, float]] = [l1, r1_pt, r2_pt, l2, l1]
-        poly_a: list[tuple[float, float]] = [l2, r2_pt, r3_pt, l3, l2]
-
-        poly_a, poly_a_additional, label_a = _recortar_subparcela(poly_a, real_polygon)
-        poly_b, poly_b_additional, label_b = _recortar_subparcela(poly_b, real_polygon)
-        poly_c, poly_c_additional, label_c = _recortar_subparcela(poly_c, real_polygon)
+        sub_lot_geometries = _dividir_parcela_en_sub_lotes(real_polygon)
+        poly_a, poly_a_additional, label_a = sub_lot_geometries["A"]
+        poly_b, poly_b_additional, label_b = sub_lot_geometries["B"]
+        poly_c, poly_c_additional, label_c = sub_lot_geometries["C"]
 
         area_a = _round_js(area_ha * 0.34, 2)
         area_b = _round_js(area_ha * 0.33, 2)
