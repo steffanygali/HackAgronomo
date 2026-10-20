@@ -110,6 +110,96 @@ def _round_js(val: float, decimals: int = 2) -> float:
     return math.floor(val * factor + 0.5) / factor
 
 
+def _centroide_anillo(ring: list[tuple[float, float]]) -> tuple[float, float]:
+    """Calcula el centroide de un anillo en coordenadas longitud/latitud."""
+    sum_cross = 0.0
+    sum_lon = 0.0
+    sum_lat = 0.0
+
+    for point, next_point in zip(ring, ring[1:], strict=False):
+        cross = point[0] * next_point[1] - next_point[0] * point[1]
+        sum_cross += cross
+        sum_lon += (point[0] + next_point[0]) * cross
+        sum_lat += (point[1] + next_point[1]) * cross
+
+    if abs(sum_cross) < 1e-12:
+        points = ring[:-1] if ring[0] == ring[-1] else ring
+        return (
+            sum(point[0] for point in points) / len(points),
+            sum(point[1] for point in points) / len(points),
+        )
+
+    return sum_lon / (3.0 * sum_cross), sum_lat / (3.0 * sum_cross)
+
+
+@lru_cache(maxsize=1)
+def _cargar_poligonos_geojson() -> dict[
+    str, tuple[list[tuple[float, float]], tuple[float, float]]
+]:
+    """Carga los contornos reales y sus centros desde ``data/coordenadas.geojson``."""
+    path = DATA_DIR / "coordenadas.geojson"
+    collection = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(collection, dict) or collection.get("type") != "FeatureCollection":
+        raise ValueError("coordenadas.geojson debe ser un GeoJSON FeatureCollection")
+
+    result: dict[str, tuple[list[tuple[float, float]], tuple[float, float]]] = {}
+    features = collection.get("features")
+    if not isinstance(features, list):
+        raise ValueError("coordenadas.geojson debe contener una lista de features")
+
+    for feature in features:
+        properties = feature.get("properties") or {}
+        parcel_id = str(properties.get("ID_POLIGON", "")).strip()
+        if not parcel_id:
+            raise ValueError("Feature sin properties.ID_POLIGON en coordenadas.geojson")
+        if parcel_id in result:
+            raise ValueError(f"ID duplicado en coordenadas.geojson: {parcel_id}")
+
+        geometry = feature.get("geometry") or {}
+        geometry_type = geometry.get("type")
+        coordinates = geometry.get("coordinates")
+        if geometry_type == "MultiPolygon":
+            polygons = coordinates
+        elif geometry_type == "Polygon":
+            polygons = [coordinates]
+        else:
+            raise ValueError(
+                f"Geometría {geometry_type!r} no soportada para la parcela {parcel_id}"
+            )
+
+        # El contrato actual del mapa representa un contorno exterior por parcela.
+        # El GeoJSON proporcionado tiene una sola pieza y no tiene huecos por feature.
+        if not isinstance(polygons, list) or len(polygons) != 1:
+            raise ValueError(f"La parcela {parcel_id} debe tener una sola pieza poligonal")
+        polygon_rings = polygons[0]
+        if not isinstance(polygon_rings, list) or len(polygon_rings) != 1:
+            raise ValueError(f"La parcela {parcel_id} debe tener solo el anillo exterior")
+
+        raw_ring = polygon_rings[0]
+        if not isinstance(raw_ring, list) or len(raw_ring) < 3:
+            raise ValueError(f"Anillo inválido para la parcela {parcel_id}")
+
+        ring: list[tuple[float, float]] = []
+        for coordinate in raw_ring:
+            if not isinstance(coordinate, list) or len(coordinate) < 2:
+                raise ValueError(f"Coordenada inválida para la parcela {parcel_id}")
+            longitude, latitude = float(coordinate[0]), float(coordinate[1])
+            if not math.isfinite(longitude) or not math.isfinite(latitude):
+                raise ValueError(f"Coordenada no finita para la parcela {parcel_id}")
+            ring.append((longitude, latitude))
+
+        # GeoJSON exige anillos cerrados. Si el exportador omitió el último punto,
+        # se cierra aquí antes de enviarlo a MapLibre.
+        if ring[0] != ring[-1]:
+            ring.append(ring[0])
+        if len(ring) < 4:
+            raise ValueError(f"Anillo inválido para la parcela {parcel_id}")
+
+        result[parcel_id] = (ring, _centroide_anillo(ring))
+
+    return result
+
+
 def _lerp_point(p0: tuple[float, float], p1: tuple[float, float], t: float) -> tuple[float, float]:
     """Interpolación lineal entre dos puntos con redondeo a 6 decimales."""
     return (
@@ -122,12 +212,22 @@ def _lerp_point(p0: tuple[float, float], p1: tuple[float, float], t: float) -> t
 def generar_parcelas_fira() -> tuple[BarleyParcel, ...]:
     """Construye las 197 parcelas reales del reto FIRA (138 train, 59 eval).
 
-    Las coordenadas (lon, lat), municipios, áreas, elevaciones y predicciones coinciden
-    exactamente con ``data/parcelas.json`` (``/api/v1/parcelas``) y ``data/parcelas_197.json``.
+    Los contornos y centros se leen desde ``data/coordenadas.geojson``. El resto de los
+    datos conserva las fuentes JSON existentes y las predicciones de ``/api/v1/parcelas``.
     """
     raw_records = json.loads((DATA_DIR / "parcelas_197.json").read_text(encoding="utf-8"))
     v1_eval_list = json.loads((DATA_DIR / "parcelas.json").read_text(encoding="utf-8"))
     v1_by_id = {item["id"]: item for item in v1_eval_list}
+    real_polygons = _cargar_poligonos_geojson()
+
+    parcel_ids = {str(record["id"]) for record in raw_records}
+    if parcel_ids != set(real_polygons):
+        missing = sorted(parcel_ids - set(real_polygons))
+        unexpected = sorted(set(real_polygons) - parcel_ids)
+        raise ValueError(
+            "IDs de coordenadas.geojson no coinciden con parcelas_197.json "
+            f"(faltantes={missing[:5]}, inesperados={unexpected[:5]})"
+        )
 
     parcels: list[BarleyParcel] = []
 
@@ -138,10 +238,12 @@ def generar_parcelas_fira() -> tuple[BarleyParcel, ...]:
         municipality = str(rec["municipality"])
         split: DatasetSplit = rec["split"]
 
-        # Si está en /api/v1/parcelas, sincronizar coordenadas y predicción exacta
+        # Usa el centroide del contorno real para el punto, el encuadre y los sub-lotes.
+        real_polygon, real_center = real_polygons[parcel_id]
+        center_lng, center_lat = real_center
+
+        # Si está en /api/v1/parcelas, sincronizar predicción e intervalo exactos.
         v1_match = v1_by_id.get(parcel_id)
-        center_lng = float(v1_match["lon"]) if v1_match else float(rec["lon"])
-        center_lat = float(v1_match["lat"]) if v1_match else float(rec["lat"])
 
         area_ha = _round_js(max(0.35, float(rec["areaHa"])), 2)
         altitude_m = float(rec["altitudeM"])
@@ -428,7 +530,7 @@ def generar_parcelas_fira() -> tuple[BarleyParcel, ...]:
             "municipality": municipality,
             "split": split,
             "center": (center_lng, center_lat),
-            "polygon": outer_polygon,
+            "polygon": real_polygon,
             "subDivisions": sub_divisions,
             "areaHa": area_ha,
             "altitudeM": altitude_m,
